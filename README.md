@@ -10,6 +10,12 @@ A simple simulation for 2D arrangments of basic optical elements
 
 Change-Log
 ----------
+##### 0.1.1
+* fixed parabolic surface of parabolic mirror
+* rename module to raypy2d
+* rename to raypy2d as raypy is already on pypi
+* changed package name to raypy
+
 ##### 0.1.0
 * imageing path with diffraction grating working but ParabolicMirror still flat
 * diffraction grating is working
