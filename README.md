@@ -19,12 +19,12 @@ Installation / Usage
 
 To install use pip:
 
-    pip install <git-url>
+    pip install git@github.com:toschoch/python-raypy.git
 
 
 Or clone the repo:
 
-    git clone <git-url>
+    git clone git@github.com:toschoch/python-raypy.git
     python setup.py install
     
 Contributing
