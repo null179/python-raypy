@@ -35,7 +35,7 @@ install_requires = [x.strip() for x in all_reqs if 'git+' not in x]
 dependency_links = [x.strip() for x in all_reqs if x.startswith('git+')]
 
 setup(
-    name='python-raypy',
+    name='raypy',
     version_format='{tag}.dev{commitcount}+{gitsha}',
     setup_requires=['setuptools-git-version','pytest-runner'],
     description='A simple simulation for 2D arrangments of basic optical elements',
