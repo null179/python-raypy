@@ -1,6 +1,7 @@
 from matplotlib import pyplot as plt
 from raypy.elements import Aperture, Lens, ParabolicMirror, Mirror
 from raypy.rays import propagate, ray_fan
+from raypy.paths import ImagePath
 import numpy as np
 
 
@@ -58,8 +59,8 @@ def test_some_rays_with_mirror():
 
     first_element = Lens(5, 16., [5.,1.], theta=30.)
     second_element = Aperture(4, [7.,2.])
-    third_element = Mirror(8., [10.,3.], theta=155)
-    fourth_element = ParabolicMirror(10., 8., [4.,10.])
+    third_element = Mirror(8., [15.,3.], theta=155)
+    fourth_element = ParabolicMirror(5., 8., [9.,10.])
 
     rays = []
 
@@ -80,6 +81,8 @@ def test_some_rays_with_mirror():
     rays.append(r.copy())
     rays = np.array(rays)
 
+
+
     ax = plt.gca()
     ax.axis('equal')
     ax.plot(rays[:,:,0],rays[:,:,1], color='orange')
@@ -87,4 +90,20 @@ def test_some_rays_with_mirror():
     second_element.plot(ax)
     third_element.plot(ax)
     fourth_element.plot(ax)
+    plt.show()
+
+
+def test_imaging_path():
+
+    path = ImagePath()
+
+    path.append(Lens(5, 16., [5.,1.], theta=30.))
+    path.append(Aperture(4, [7.,2.]))
+    path.append(Mirror(8., [15.,3.], theta=155))
+    path.append(ParabolicMirror(5., 8., [9.,10.]))
+    path.propagate(35)
+
+    ax = plt.gca()
+    ax.axis('equal')
+    path.plot(ax)
     plt.show()
