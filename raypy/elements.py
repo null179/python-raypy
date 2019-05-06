@@ -1,4 +1,5 @@
 from matplotlib.axes import Axes
+from matplotlib.patches import Arc, Circle
 import numpy as np
 
 from .utils import rotation_matrix
@@ -23,15 +24,15 @@ class Element:
     def to_element_frame_of_reference(self, rays):
 
         # translation
-        rays[:,:2] = rays[:,:2] - self.origin[None,:]
+        rays[:, :2] = rays[:, :2] - self.origin[None, :]
 
         # rotation
         r = rotation_matrix(-self.theta)
-        rays[:,:2] = np.dot(r,rays[:,:2].T).T
+        rays[:, :2] = np.dot(r,rays[:, :2].T).T
 
         # rotate ray direction
         tan_theta = np.tan(self.theta*np.pi/180.)
-        rays[:,2] = (rays[:,2] - tan_theta) / (1. + tan_theta * rays[:,2])
+        rays[:, 2] = (rays[:, 2] - tan_theta) / (1. + tan_theta * rays[:, 2])
 
         return rays
 
@@ -46,7 +47,7 @@ class Element:
 
         # rotate ray direction
         tan_theta = np.tan(self.theta*np.pi/180.)
-        rays[:,2] = (tan_theta + rays[:,2]) / (1. - tan_theta * rays[:,2])
+        rays[:, 2] = (tan_theta + rays[:, 2]) / (1. - tan_theta * rays[:, 2])
 
         return rays
 
@@ -57,13 +58,19 @@ class Element:
 
         rays[:, :2] = self.intersection_of(rays)
 
-        # ABCD transformation of element
-        rays[:, 1:] = np.dot(self.matrix, rays[:, 1:].T).T
+        rays = self.transform_rays(rays)
 
         if self.mirroring:
             rays[:, 2] = -rays[:, 2]
 
         rays = self.block(rays)
+
+        return rays
+
+    def transform_rays(self, rays):
+
+        # ABCD transformation of element
+        rays[:, 1:3] = np.dot(self.matrix, rays[:, 1:3].T).T
 
         return rays
 
@@ -126,7 +133,6 @@ class Aperture(Element):
                            [0., -self.diameter],
                            [0., -blocker_diameter]]).T / 2.0
 
-
         yticks = np.arange(points[1, 1], points[1, 0]+0.1, 1.0)
         yticks = np.hstack((yticks, -yticks))
         yticks_x = np.stack((np.zeros_like(yticks), np.ones_like(yticks) * 0.4))
@@ -138,7 +144,6 @@ class Aperture(Element):
             points = np.dot(r, points)
             yticks[:, 0, :] = np.dot(r, yticks[:, 0, :])
             yticks[:, 1, :] = np.dot(r, yticks[:, 1, :])
-
 
         origin = np.array(self.origin)
         points = points + origin[:, None]
@@ -180,11 +185,6 @@ class Mirror(Aperture):
         Returns:
             (point, line1, line2) lines plotted
         """
-
-        if self.blocker_diameter == float('-Inf'):
-            blocker_diameter = 2 * self.diameter
-        else:
-            blocker_diameter = self.blocker_diameter
 
         points = np.array([[0., self.diameter],
                            [0., -self.diameter]]).T / 2.0
@@ -234,6 +234,7 @@ class Lens(Mirror):
         self.matrix = np.array([[1., 0],
                                 [-1./self.f, 1.]])
 
+        self.draw_arcs = False
 
     def plot(self, ax: Axes):
         """
@@ -245,25 +246,35 @@ class Lens(Mirror):
             (point, line1, line2) lines plotted
         """
 
-        if self.blocker_diameter == float('-Inf'):
-            blocker_diameter = 2 * self.diameter
-        else:
-            blocker_diameter = self.blocker_diameter
-
         points = np.array([[0., self.diameter],
                            [0., -self.diameter]]).T / 2.0
+
+        arc_ratio = 0.02
+        arc_radius_factor = (0.5*arc_ratio + 0.125 * 1./arc_ratio)
+        m1 = np.array([self.diameter * (arc_radius_factor - arc_ratio), 0])
+        m2 = np.array([-self.diameter * (arc_radius_factor - arc_ratio), 0])
 
         if self.theta != 0.:
             r = rotation_matrix(self.theta)
             points = np.dot(r, points)
+            m1 = np.dot(r, m1)
+            m2 = np.dot(r, m2)
 
         origin = np.array(self.origin)
         points = points + origin[:, None]
+        m1 = m1 + origin
+        m2 = m2 + origin
 
-        props = { 'color': 'black', 'linewidth': 2}
+        props = { 'color': 'black', 'linewidth': 1 if self.draw_arcs else 2}
 
         lines = ax.plot(origin[0, None], origin[1, None], marker='x', linestyle='', color='black')
         lines += ax.plot(points[0, :], points[1, :], **props)
+
+        if self.draw_arcs:
+            r = arc_radius_factor * self.diameter
+            a = 2*np.arctan(2.*arc_ratio)*180./np.pi
+            ax.add_patch(Arc(m1, 2*r, 2*r, self.theta, 180.-a, 180.+a, color='black', linewidth=2))
+            ax.add_patch(Arc(m2, 2*r, 2*r, self.theta, -a, +a, color='black', linewidth=2))
 
         return lines
 
@@ -304,11 +315,6 @@ class ParabolicMirror(Lens):
             (point, line1, line2) lines plotted
         """
 
-        if self.blocker_diameter == float('-Inf'):
-            blocker_diameter = 2 * self.diameter
-        else:
-            blocker_diameter = self.blocker_diameter
-
         y = np.linspace(-self.diameter/2.,self.diameter/2.)
         points = np.stack((1./(4*self.f)*y**2, y))
 
@@ -338,55 +344,65 @@ class ParabolicMirror(Lens):
         return lines
 
 
-class CurvedMirror(Aperture):
+class DiffractionGrating(Mirror):
 
-    def __init__(self, focal_length: float, diameter: float, origin=[0., 0.], theta=0.,
-                 blocker_diameter: float = float('+Inf')):
+    def __init__(self, grating: float, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf')):
         """
-        Creates an curved mirror element
+        Creates a diffraction grating element
         Args:
-            focal_length: (float) focal length of the lens
+            grating: (float) distance of grating in micrometer
             diameter: (float) diameter of the lens
             origin: position of the center of the lens
-            theta: rotation angle of aperture (with respect the abscissa)
+            theta: rotation angle of mirror (with respect the abscissa)
             blocker_diameter: (float, optional) size of the aperture blocker
         """
 
-        Aperture.__init__(self, diameter, origin, theta, blocker_diameter)
+        Mirror.__init__(self, diameter, origin, theta, blocker_diameter)
 
-        self.f = focal_length
+        self.mirroring = False
+        self.grating = 
 
-        self.matrix = np.array([[1., 0],
-                                [-1./self.f, 1]])
+    def intersection_of(self, rays):
+        x = 2*(np.sqrt(self.f)*np.sqrt(rays[:,2]**2*self.f + rays[:,1]) + rays[:,2] * self.f)
+        rays[:, 1] = x
+        rays[:, 0] = 1/(4*self.f)*x*x
+
+        return rays[:, :2]
 
     def plot(self, ax: Axes):
         """
-        Plots the aperture into the passed matplotlib axes
+        Plots the parabolic mirror into the passed matplotlib axes
         Args:
-            ax: (Axes) the axes to plot the aperture into
+            ax: (Axes) the axes to plot the parabolic mirror into
 
         Returns:
             (point, line1, line2) lines plotted
         """
 
-        if self.blocker_diameter == float('-Inf'):
-            blocker_diameter = 2 * self.diameter
-        else:
-            blocker_diameter = self.blocker_diameter
+        y = np.linspace(-self.diameter/2.,self.diameter/2.)
+        points = np.stack((1./(4*self.f)*y**2, y))
 
-        points = np.array([[0., self.diameter],
-                           [0., -self.diameter]]).T / 2.0
+
+        yticks = np.arange(y[0], y[-1] + 0.1, 1.0)
+        yticks_x = 1./(4*self.f)*yticks**2
+        yticks_x = np.stack((yticks_x, yticks_x-np.ones_like(yticks) * 0.4))
+        yticks_y = np.stack((yticks, yticks))
+        yticks = np.stack((yticks_x, yticks_y))
 
         if self.theta != 0.:
             r = rotation_matrix(self.theta)
             points = np.dot(r, points)
+            yticks[:, 0, :] = np.dot(r, yticks[:, 0, :])
+            yticks[:, 1, :] = np.dot(r, yticks[:, 1, :])
 
         origin = np.array(self.origin)
         points = points + origin[:, None]
+        yticks = yticks + origin[:, None, None]
 
         props = { 'color': 'black', 'linewidth': 2}
 
         lines = ax.plot(origin[0, None], origin[1, None], marker='x', linestyle='', color='black')
+        lines += ax.plot(yticks[0, :, :], yticks[1, :, :], color='black')
         lines += ax.plot(points[0, :], points[1, :], **props)
 
         return lines
