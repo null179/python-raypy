@@ -1,4 +1,4 @@
-RayPy Simple 2D Optics Simulation
+RayPy2D Simple 2D Optics Simulation
 ===============================
 author: Tobias Schoch
 
