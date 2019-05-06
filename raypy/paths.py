@@ -9,7 +9,7 @@ from .utils import wavelength_to_rgb
 
 class Object(RotateObject):
 
-    def __init__(self, height, origin=[0., 0.], theta: float = 0., fans=[0, 0.5, 1.0]):
+    def __init__(self, height, origin=[0., 0.], theta: float = 0., fans=[0, 0.5, 1.0], n_rays: int = 9):
         """
         Creates an object subject to imaging. The object emits three fans of rays
         Args:
@@ -17,6 +17,7 @@ class Object(RotateObject):
             origin: position of the object
             theta: (float) rotation angle in degrees
             fans: (list[float]) position of the ray fans emitted from object
+            n_rays: (int) number of rays per fan
         """
 
         RotateObject.__init__(self, origin, theta)
@@ -28,7 +29,7 @@ class Object(RotateObject):
 
             y0 = fan * self.height - self.height / 2.
 
-            rays = ray_fan([0, y0], [-75, 75])
+            rays = ray_fan([0, y0], [-75, 75], n=n_rays)
             rays = np.append(rays, np.ones((rays.shape[0], 1)) * i, axis=1)
             rays = self.to_global_frame_of_reference(rays)
             self.rays.append(rays)

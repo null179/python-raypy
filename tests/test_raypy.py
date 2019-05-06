@@ -99,9 +99,9 @@ def test_imaging_path():
 
     path.append(Lens(5, 16., [5.,1.], theta=30.))
     path.append(Aperture(4, [7.,2.]))
-    path.append(Mirror(8., [15.,3.], theta=155))
-    path.append(ParabolicMirror(5., 8., [9.,10.]))
-    path.propagate(35)
+    path.append(ParabolicMirror(5., 8., [15.,3.], theta=155))
+    path.append(ParabolicMirror(5., 8., [9.,15.], theta=-45))
+    path.propagate(15)
 
     ax = plt.gca()
     ax.axis('equal')
@@ -141,13 +141,16 @@ def test_diffraction_grating():
 
 def test_imaging_path_with_diffraction_grating():
 
-    obj = Object(2.0)
-    path = ImagePath()
+    obj = Object(2.0, n_rays=5)
+    path = ImagePath(obj)
 
     path.append(Lens(3, 16., [3.,0]))
     #path.append(Lens(5, 16., [10.,0]))
     path.append(DiffractionGrating(1.6, 16., [8, 0.]))
-    path.propagate(20)
+    path.append(ParabolicMirror(16., 16., [20, 3.], theta=160.))
+
+    #path.append(Lens(3, 16., [15, 1.], theta=10.))
+    path.propagate(-5)
 
     ax = plt.gca()
     ax.axis('equal')

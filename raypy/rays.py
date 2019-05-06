@@ -17,7 +17,7 @@ def propagate(rays, x: float, stop : int = 1):
     dx = x - rays[:, 0]
 
     rays[:, 1] = rays[:, 1] + rays[:, 2] * dx
-    rays[(stop * dx)<0, 2] = np.nan
+    #rays[(stop * dx)<0, 2] = np.nan
     rays[:, 0] = x
 
     return rays
@@ -28,8 +28,8 @@ def ray_fan(origin=[0., 0.], angle=[-90., 90.], n=9):
     origin = np.array(origin)
 
     da = (angle[1]-angle[0]) / float(n+1)
-    rays = np.zeros((n,3))
+    rays = np.zeros((n, 3))
     rays[:,:2] = origin[None, :]
-    rays[:, 2] = np.tan((np.arange(1,n+1)*da + angle[0]) * np.pi/180.)
+    rays[:, 2] = np.tan((np.arange(1, n+1)*da + angle[0]) * np.pi/180.)
 
     return rays

@@ -322,14 +322,14 @@ class ParabolicMirror(Lens):
         Lens.__init__(self, focal_length, diameter, origin, theta, blocker_diameter)
 
         self.mirroring = True
-        self.matrix[1,0] *= -1
+        self.matrix[1, 0] *= -1
 
-    def intersection_of(self, rays):
-        x = 2*(np.sqrt(self.f)*np.sqrt(rays[:,2]**2*self.f + rays[:,1]) + rays[:,2] * self.f)
-        rays[:, 1] = x
-        rays[:, 0] = 1/(4*self.f)*x*x
-
-        return rays[:, :2]
+    # def intersection_of(self, rays):
+    #     x = 2*(np.sqrt(self.f)*np.sqrt(rays[:,2]**2*self.f + rays[:,1]) + rays[:,2] * self.f)
+    #     rays[:, 1] = x
+    #     rays[:, 0] = 1/(4*self.f)*x*x
+    #
+    #     return rays[:, :2]
 
     def plot(self, ax: Axes):
         """
