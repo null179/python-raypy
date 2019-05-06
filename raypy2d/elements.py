@@ -80,7 +80,7 @@ class Element(RotateObject):
     def trace_in_element_frame_of_reference(self, rays):
 
         # propagation in air
-        rays = propagate(rays, 0., -1 if self.mirroring else 1)
+        rays = propagate(rays, 0.)
 
         rays[:, :2] = self.intersection_of(rays)
 
@@ -324,12 +324,20 @@ class ParabolicMirror(Lens):
         self.mirroring = True
         self.matrix[1, 0] *= -1
 
-    # def intersection_of(self, rays):
-    #     x = 2*(np.sqrt(self.f)*np.sqrt(rays[:,2]**2*self.f + rays[:,1]) + rays[:,2] * self.f)
-    #     rays[:, 1] = x
-    #     rays[:, 0] = 1/(4*self.f)*x*x
-    #
-    #     return rays[:, :2]
+    def intersection_of(self, rays):
+
+        a = rays[:, 2]
+        y = rays[:, 1]
+        ay = a * y
+        x = (2*np.sqrt(self.f*(self.f - ay)) + ay - 2 * self.f) / rays[:, 2]**2
+        if (a == 0.).any():
+            x[a == 0] = y * y / (4. * self.f)
+        # x = y / (3 + a)
+
+        rays[:, 0] = -x
+        rays[:, 1] = y - a * x
+
+        return rays[:, :2]
 
     def plot(self, ax: Axes):
         """

@@ -104,7 +104,10 @@ class ImagePath:
                 color = rays[:, i, 4]
                 color = color[~np.isnan(color)][0]
                 color = wavelength_to_rgb(color)
-                ax.plot(rays[:, i, 0], rays[:, i, 1], color = color)
+                linestyle = rays[:, i, 3]
+                linestyle = linestyle[~np.isnan(linestyle)].astype(int)[0]
+                linestyle = (['--', '-','-.']*10)[linestyle]
+                ax.plot(rays[:, i, 0], rays[:, i, 1], color = color, linestyle = linestyle)
 
         elif 3 < rays.shape[2]:
 

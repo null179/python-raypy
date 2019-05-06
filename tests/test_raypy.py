@@ -20,7 +20,9 @@ def test_plot_lens():
     test the plot function of the lens
     """
     ax = plt.gca()
-    a = Lens(focal_length=10., diameter=5., origin=[1., 3.], theta=np.pi / 2.34, blocker_diameter=10.)
+    ax.axis('equal')
+    a = Lens(focal_length=10., diameter=5., origin=[1., 3.], theta=20.34, blocker_diameter=10.)
+    a.draw_arcs = True
     a.plot(ax)
     plt.show()
 
@@ -145,9 +147,9 @@ def test_imaging_path_with_diffraction_grating():
     path = ImagePath(obj)
 
     path.append(Lens(3, 16., [3.,0]))
-    #path.append(Lens(5, 16., [10.,0]))
     path.append(DiffractionGrating(1.6, 16., [8, 0.]))
-    path.append(ParabolicMirror(16., 16., [20, 3.], theta=160.))
+    # path.append(Lens(5, 16., [10.,0]))
+    path.append(ParabolicMirror(16., 26., [20, 5.5], theta=160.))
 
     #path.append(Lens(3, 16., [15, 1.], theta=10.))
     path.propagate(-5)

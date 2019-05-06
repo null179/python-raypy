@@ -1,13 +1,12 @@
 import numpy as np
 
 
-def propagate(rays, x: float, stop : int = 1):
+def propagate(rays, x: float):
     """
     Propagates the rays in free space up to the x
     Args:
         rays: (np.array) rays to propagate
         x: (float) x-coordinate of the plane up to which the rays should propagate
-        stop: (int) either 1 or -1
 
     Returns:
         (np.array) propagated rays
