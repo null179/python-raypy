@@ -6,29 +6,45 @@ from .utils import rotation_matrix
 from .rays import propagate
 
 
-class Element:
+class RotateObject:
 
     def __init__(self, origin=[0., 0.], theta=0.):
         """
-        Creates an optical element
+        Creates an object that is rotated with respect to the original coordinate system
         Args:
             origin: position of the center of the element
             theta: rotation angle in degrees of element (with respect the abscissa)
         """
-
         self.origin = np.array(origin)
         self.theta = theta
-        self.matrix = np.eye(2)
-        self.mirroring = False
 
-    def to_element_frame_of_reference(self, rays):
+    def points_to_object_frame_of_reference(self, points):
 
         # translation
-        rays[:, :2] = rays[:, :2] - self.origin[None, :]
+        points = points - self.origin[None, :]
 
         # rotation
         r = rotation_matrix(-self.theta)
-        rays[:, :2] = np.dot(r,rays[:, :2].T).T
+        points = np.dot(r, points.T).T
+
+        return points
+
+    def points_to_global_frame_of_reference(self, points):
+
+        # rotation
+        r = rotation_matrix(self.theta)
+        points = np.dot(r, points.T).T
+
+        # translation
+        points = points + self.origin[None, :]
+
+        return points
+
+
+    def to_element_frame_of_reference(self, rays):
+
+        # transform points
+        rays[:, :2] = self.points_to_object_frame_of_reference(rays[:, :2])
 
         # rotate ray direction
         tan_theta = np.tan(self.theta*np.pi/180.)
@@ -38,18 +54,28 @@ class Element:
 
     def to_global_frame_of_reference(self, rays):
 
-        # rotation
-        r = rotation_matrix(self.theta)
-        rays[:, :2] = np.dot(r, rays[:, :2].T).T
-
         # translation
-        rays[:, :2] = rays[:, :2] + self.origin[None, :]
+        rays[:, :2] = self.points_to_global_frame_of_reference(rays[:, :2])
 
         # rotate ray direction
         tan_theta = np.tan(self.theta*np.pi/180.)
         rays[:, 2] = (tan_theta + rays[:, 2]) / (1. - tan_theta * rays[:, 2])
 
         return rays
+
+
+class Element(RotateObject):
+
+    def __init__(self, origin=[0., 0.], theta=0.):
+        """
+        Creates an optical element
+        Args:
+            origin: position of the center of the element
+            theta: rotation angle in degrees of element (with respect the abscissa)
+        """
+        RotateObject.__init__(self, origin, theta)
+        self.matrix = np.eye(2)
+        self.mirroring = False
 
     def trace_in_element_frame_of_reference(self, rays):
 
@@ -346,7 +372,9 @@ class ParabolicMirror(Lens):
 
 class DiffractionGrating(Mirror):
 
-    def __init__(self, grating: float, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf')):
+    def __init__(self, grating: float, diameter: float, origin=[0., 0.], theta=0.,
+                 blocker_diameter: float = float('+Inf'),
+                 default_wavelength: float = 532.):
         """
         Creates a diffraction grating element
         Args:
@@ -355,54 +383,18 @@ class DiffractionGrating(Mirror):
             origin: position of the center of the lens
             theta: rotation angle of mirror (with respect the abscissa)
             blocker_diameter: (float, optional) size of the aperture blocker
+            default_wavelength: (float, optional) wavelength in nm, used if rays do not specify
         """
 
         Mirror.__init__(self, diameter, origin, theta, blocker_diameter)
 
         self.mirroring = False
-        self.grating = 
+        self.grating = grating
+        self.default_wavelength = default_wavelength
 
-    def intersection_of(self, rays):
-        x = 2*(np.sqrt(self.f)*np.sqrt(rays[:,2]**2*self.f + rays[:,1]) + rays[:,2] * self.f)
-        rays[:, 1] = x
-        rays[:, 0] = 1/(4*self.f)*x*x
+    def transform_rays(self, rays):
 
-        return rays[:, :2]
+        if rays.shape[1] < 4:
+            # add a wavelength column
+            rays = np.append((rays, np.ones(rays.shape[0]) * self.default_wavelength), axis=1)
 
-    def plot(self, ax: Axes):
-        """
-        Plots the parabolic mirror into the passed matplotlib axes
-        Args:
-            ax: (Axes) the axes to plot the parabolic mirror into
-
-        Returns:
-            (point, line1, line2) lines plotted
-        """
-
-        y = np.linspace(-self.diameter/2.,self.diameter/2.)
-        points = np.stack((1./(4*self.f)*y**2, y))
-
-
-        yticks = np.arange(y[0], y[-1] + 0.1, 1.0)
-        yticks_x = 1./(4*self.f)*yticks**2
-        yticks_x = np.stack((yticks_x, yticks_x-np.ones_like(yticks) * 0.4))
-        yticks_y = np.stack((yticks, yticks))
-        yticks = np.stack((yticks_x, yticks_y))
-
-        if self.theta != 0.:
-            r = rotation_matrix(self.theta)
-            points = np.dot(r, points)
-            yticks[:, 0, :] = np.dot(r, yticks[:, 0, :])
-            yticks[:, 1, :] = np.dot(r, yticks[:, 1, :])
-
-        origin = np.array(self.origin)
-        points = points + origin[:, None]
-        yticks = yticks + origin[:, None, None]
-
-        props = { 'color': 'black', 'linewidth': 2}
-
-        lines = ax.plot(origin[0, None], origin[1, None], marker='x', linestyle='', color='black')
-        lines += ax.plot(yticks[0, :, :], yticks[1, :, :], color='black')
-        lines += ax.plot(points[0, :], points[1, :], **props)
-
-        return lines

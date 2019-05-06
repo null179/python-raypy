@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
 from raypy.elements import Aperture, Lens, ParabolicMirror, Mirror
 from raypy.rays import propagate, ray_fan
-from raypy.paths import ImagePath
+from raypy.paths import ImagePath, Object
 import numpy as np
 
 
@@ -102,6 +102,21 @@ def test_imaging_path():
     path.append(Mirror(8., [15.,3.], theta=155))
     path.append(ParabolicMirror(5., 8., [9.,10.]))
     path.propagate(35)
+
+    ax = plt.gca()
+    ax.axis('equal')
+    path.plot(ax)
+    plt.show()
+
+
+def test_imaging_path_with_object():
+
+    obj = Object(2.0, theta=15.)
+    path = ImagePath(obj)
+
+    path.append(Lens(3, 16., [5.,1.], theta=30.))
+    path.append(Lens(10, 16., [8.,3.], theta=15.))
+    path.propagate(20)
 
     ax = plt.gca()
     ax.axis('equal')
