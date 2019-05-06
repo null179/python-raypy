@@ -374,7 +374,7 @@ class DiffractionGrating(Mirror):
 
     def __init__(self, grating: float, diameter: float, origin=[0., 0.], theta=0.,
                  blocker_diameter: float = float('+Inf'),
-                 default_wavelength: float = 532.):
+                 default_wavelengths: list = [532., 430, 650.]):
         """
         Creates a diffraction grating element
         Args:
@@ -383,18 +383,62 @@ class DiffractionGrating(Mirror):
             origin: position of the center of the lens
             theta: rotation angle of mirror (with respect the abscissa)
             blocker_diameter: (float, optional) size of the aperture blocker
-            default_wavelength: (float, optional) wavelength in nm, used if rays do not specify
+            default_wavelengths: (list[float], optional) wavelengths in nm, used if rays do not specify
         """
 
         Mirror.__init__(self, diameter, origin, theta, blocker_diameter)
 
         self.mirroring = False
         self.grating = grating
-        self.default_wavelength = default_wavelength
+        self.default_wavelengths = default_wavelengths
 
     def transform_rays(self, rays):
 
         if rays.shape[1] < 4:
             # add a wavelength column
-            rays = np.append((rays, np.ones(rays.shape[0]) * self.default_wavelength), axis=1)
+            rays = np.hstack((rays, np.ones((rays.shape[0], 2)) * self.default_wavelengths[0]))
+            rays[:, 3] = 0
 
+            for l in self.default_wavelengths[1:]:
+                rays_new = rays.copy()
+                rays_new[:, 4] = l
+                rays = np.vstack((rays, rays_new))
+
+        elif rays.shape[1] < 5:
+            rays = np.hstack((rays, np.ones((rays.shape[0], 1)) * self.default_wavelengths[0]))
+
+            for l in self.default_wavelengths[1:]:
+                rays_new = rays.copy()
+                rays_new[:, 4] = l
+                rays = np.vstack((rays, rays_new))
+
+        rays[:, 2] = np.tan(np.arcsin(rays[:, 4]/ self.grating/ 1000. - np.sin(np.arctan(rays[:, 2]))))
+
+        return rays
+
+    def plot(self, ax: Axes):
+        """
+        Plots the aperture into the passed matplotlib axes
+        Args:
+            ax: (Axes) the axes to plot the aperture into
+
+        Returns:
+            (point, line1, line2) lines plotted
+        """
+
+        points = np.array([[0., self.diameter],
+                           [0., -self.diameter]]).T / 2.0
+
+        if self.theta != 0.:
+            r = rotation_matrix(self.theta)
+            points = np.dot(r, points)
+
+        origin = np.array(self.origin)
+        points = points + origin[:, None]
+
+        props = { 'color': 'black', 'linewidth': 2}
+
+        lines = ax.plot(origin[0, None], origin[1, None], marker='x', linestyle='', color='black')
+        lines += ax.plot(points[0, :], points[1, :], **props)
+
+        return lines

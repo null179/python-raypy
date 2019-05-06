@@ -1,5 +1,5 @@
 from matplotlib import pyplot as plt
-from raypy.elements import Aperture, Lens, ParabolicMirror, Mirror
+from raypy.elements import Aperture, Lens, ParabolicMirror, Mirror, DiffractionGrating
 from raypy.rays import propagate, ray_fan
 from raypy.paths import ImagePath, Object
 import numpy as np
@@ -116,6 +116,37 @@ def test_imaging_path_with_object():
 
     path.append(Lens(3, 16., [5.,1.], theta=30.))
     path.append(Lens(10, 16., [8.,3.], theta=15.))
+    path.propagate(20)
+
+    ax = plt.gca()
+    ax.axis('equal')
+    path.plot(ax)
+    plt.show()
+
+
+def test_diffraction_grating():
+
+    path = ImagePath()
+
+    path.append(Lens(3, 16., [5.,1.], theta=30.))
+    path.append(Lens(10, 16., [8.,3.], theta=15.))
+    path.append(DiffractionGrating(1.6, 16., [10, 3.], theta=15.))
+    path.propagate(25)
+
+    ax = plt.gca()
+    ax.axis('equal')
+    path.plot(ax)
+    plt.show()
+
+
+def test_imaging_path_with_diffraction_grating():
+
+    obj = Object(2.0)
+    path = ImagePath()
+
+    path.append(Lens(3, 16., [3.,0]))
+    #path.append(Lens(5, 16., [10.,0]))
+    path.append(DiffractionGrating(1.6, 16., [8, 0.]))
     path.propagate(20)
 
     ax = plt.gca()

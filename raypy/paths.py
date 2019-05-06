@@ -4,6 +4,7 @@ from matplotlib import rc_params
 import numpy as np
 from .elements import Element, RotateObject
 from .rays import ray_fan, propagate
+from .utils import wavelength_to_rgb
 
 
 class Object(RotateObject):
@@ -70,11 +71,41 @@ class ImagePath:
     def propagate(self, x):
         self.rays.append(propagate(self.rays[-1].copy(), x))
 
+    def _3d_array_of_rays(self):
+
+        cols = max([arr.shape[1] for arr in self.rays])
+        rows = max([arr.shape[0] for arr in self.rays])
+
+        arrs = []
+        for rayarr in self.rays:
+            new_cols= cols-rayarr.shape[1]
+            new_rows= rows-rayarr.shape[0]
+
+            if new_cols > 0:
+                rayarr = np.hstack((rayarr, np.ones((rayarr.shape[0], new_cols))))
+                rayarr[:,-new_cols:] = np.nan
+
+            if new_rows > 0:
+                rayarr = np.vstack((rayarr, np.ones((new_rows, rayarr.shape[1]))))
+                rayarr[-new_rows:, :] = np.nan
+
+            arrs.append(rayarr)
+
+        return np.asarray(arrs)
+
     def plot(self, ax):
 
         # plot rays
-        rays = np.array(self.rays)
-        if rays.shape[2] > 3:
+        rays = self._3d_array_of_rays()
+
+        if 4 < rays.shape[2]:
+            for i in range(rays.shape[1]):
+                color = rays[:, i, 4]
+                color = color[~np.isnan(color)][0]
+                color = wavelength_to_rgb(color)
+                ax.plot(rays[:, i, 0], rays[:, i, 1], color = color)
+
+        elif 3 < rays.shape[2]:
 
             cycler = iter(rc_params()['axes.prop_cycle'])
 
