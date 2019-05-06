@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
-from raypy.elements import Aperture, Lens, ParabolicMirror, Mirror, DiffractionGrating
-from raypy.rays import propagate, ray_fan
-from raypy.paths import ImagePath, Object
+from raypy2d.elements import Aperture, Lens, ParabolicMirror, Mirror, DiffractionGrating
+from raypy2d.rays import propagate, ray_fan
+from raypy2d.paths import ImagePath, Object
 import numpy as np
 
 
