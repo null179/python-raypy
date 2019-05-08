@@ -10,6 +10,10 @@ A simple simulation for 2D arrangments of basic optical elements
 
 Change-Log
 ----------
+##### 0.1.2
+* Renamed ImagePath -> OpticalPath
+* fixed bug in ray propagation with zero angle in parabolic mirror
+
 ##### 0.1.1
 * fixed parabolic surface of parabolic mirror
 * rename module to raypy2d
