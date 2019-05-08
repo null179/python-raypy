@@ -330,9 +330,10 @@ class ParabolicMirror(Lens):
         y = rays[:, 1]
         ay = a * y
         x = (2*np.sqrt(self.f*(self.f - ay)) + ay - 2 * self.f) / rays[:, 2]**2
-        if (a == 0.).any():
-            x[a == 0] = y * y / (4. * self.f)
-        # x = y / (3 + a)
+
+        zero_elements = (a == 0)
+        if zero_elements.any():
+            x[zero_elements] = y[zero_elements] * y[zero_elements] / (4. * self.f)
 
         rays[:, 0] = -x
         rays[:, 1] = y - a * x
