@@ -26,7 +26,6 @@ class Object(RotateObject):
 
         self.rays = []
         for i, fan in enumerate(self.fans_at):
-
             y0 = fan * self.height - self.height / 2.
 
             rays = ray_fan([0, y0], [-75, 75], n=n_rays)
@@ -40,28 +39,27 @@ class Object(RotateObject):
         self.rays = self.to_global_frame_of_reference(self.rays)
 
     def plot(self, ax):
-
-        points = np.array([[0,  self.height],
+        points = np.array([[0, self.height],
                            [0, -self.height]]) / 2.
 
         points = self.points_to_global_frame_of_reference(points)
 
         arrow = Arrow(points[0, 0], points[0, 1],
-                      dx=points[1, 0]-points[0, 0],
-                      dy=points[1, 1]-points[0, 1],
+                      dx=points[1, 0] - points[0, 0],
+                      dy=points[1, 1] - points[0, 1],
                       color='blue')
 
         ax.add_patch(arrow)
 
 
-class ImagePath:
+class OpticalPath:
 
-    def __init__(self, obj: Object=None):
+    def __init__(self, obj: Object = None, origin=[0., 0.], angle=[-50, 50], n_rays=9):
 
         self.elements = []
         self.obj = obj
         if self.obj is None:
-            self.rays = [ray_fan([0., 0.], angle=[-50, 50])]
+            self.rays = [ray_fan(origin=origin, angle=angle, n=n_rays)]
         else:
             self.rays = [obj.rays]
 
@@ -79,12 +77,12 @@ class ImagePath:
 
         arrs = []
         for rayarr in self.rays:
-            new_cols= cols-rayarr.shape[1]
-            new_rows= rows-rayarr.shape[0]
+            new_cols = cols - rayarr.shape[1]
+            new_rows = rows - rayarr.shape[0]
 
             if new_cols > 0:
                 rayarr = np.hstack((rayarr, np.ones((rayarr.shape[0], new_cols))))
-                rayarr[:,-new_cols:] = np.nan
+                rayarr[:, -new_cols:] = np.nan
 
             if new_rows > 0:
                 rayarr = np.vstack((rayarr, np.ones((new_rows, rayarr.shape[1]))))
@@ -106,16 +104,16 @@ class ImagePath:
                 color = wavelength_to_rgb(color)
                 linestyle = rays[:, i, 3]
                 linestyle = linestyle[~np.isnan(linestyle)].astype(int)[0]
-                linestyle = (['--', '-','-.']*10)[linestyle]
-                ax.plot(rays[:, i, 0], rays[:, i, 1], color = color, linestyle = linestyle)
+                linestyle = (['-', '--', '-.'] * 10)[linestyle]
+                ax.plot(rays[:, i, 0], rays[:, i, 1], color=color, linestyle=linestyle)
 
         elif 3 < rays.shape[2]:
 
             cycler = iter(rc_params()['axes.prop_cycle'])
 
-            for c in set(rays[0, : , 3].tolist()):
-                I = (rays[0, :, 3]==c).squeeze()
-                ax.plot(rays[:, I, 0], rays[:, I, 1], color = next(cycler)['color'])
+            for c in set(rays[0, :, 3].tolist()):
+                I = (rays[0, :, 3] == c).squeeze()
+                ax.plot(rays[:, I, 0], rays[:, I, 1], color=next(cycler)['color'])
         else:
             ax.plot(rays[:, :, 0], rays[:, :, 1], color='orange')
 

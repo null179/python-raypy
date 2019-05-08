@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
 from raypy2d.elements import Aperture, Lens, ParabolicMirror, Mirror, DiffractionGrating
 from raypy2d.rays import propagate, ray_fan
-from raypy2d.paths import ImagePath, Object
+from raypy2d.paths import OpticalPath, Object
 import numpy as np
 
 
@@ -97,7 +97,7 @@ def test_some_rays_with_mirror():
 
 def test_imaging_path():
 
-    path = ImagePath()
+    path = OpticalPath()
 
     path.append(Lens(5, 16., [5.,1.], theta=30.))
     path.append(Aperture(4, [7.,2.]))
@@ -114,7 +114,7 @@ def test_imaging_path():
 def test_imaging_path_with_object():
 
     obj = Object(2.0, theta=15.)
-    path = ImagePath(obj)
+    path = OpticalPath(obj)
 
     path.append(Lens(3, 16., [5.,1.], theta=30.))
     path.append(Lens(10, 16., [8.,3.], theta=15.))
@@ -128,7 +128,7 @@ def test_imaging_path_with_object():
 
 def test_diffraction_grating():
 
-    path = ImagePath()
+    path = OpticalPath()
 
     path.append(Lens(3, 16., [5.,1.], theta=30.))
     path.append(Lens(10, 16., [8.,3.], theta=15.))
@@ -144,7 +144,7 @@ def test_diffraction_grating():
 def test_imaging_path_with_diffraction_grating():
 
     obj = Object(2.0, n_rays=5)
-    path = ImagePath(obj)
+    path = OpticalPath(obj)
 
     path.append(Lens(3, 16., [3.,0]))
     path.append(DiffractionGrating(1.6, 16., [8, 0.]))
