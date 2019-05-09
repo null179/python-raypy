@@ -19,6 +19,16 @@ class RotateObject:
         self.theta = theta
 
     def points_to_object_frame_of_reference(self, points):
+        """
+        transform the passed points to the objects frame of reference (e.g. rotated and translated)
+        assuming they are in the global frame of reference
+        Args:
+            points: (numpy.array) two dimensional array with two columns shape (n, 2) where the first
+                    column is interpreted as the global x coordinate and the second the global y coordinate.
+
+        Returns:
+            (numpy.array of shape n, 2) with the transformed coordinates
+        """
 
         # translation
         points = points - self.origin[None, :]
@@ -30,6 +40,16 @@ class RotateObject:
         return points
 
     def points_to_global_frame_of_reference(self, points):
+        """
+        transform the passed points to the global frame of reference (e.g. rotated and translated)
+        assuming they are in the object frame of reference
+        Args:
+            points: (numpy.array) two dimensional array with two columns shape (n, 2) where the first
+                    column is interpreted as the x coordinate and the second the y coordinate.
+
+        Returns:
+            (numpy.array of shape n, 2) with the transformed coordinates
+        """
 
         # rotation
         r = rotation_matrix(self.theta)
@@ -42,6 +62,16 @@ class RotateObject:
 
 
     def to_element_frame_of_reference(self, rays):
+        """
+        transform the passed rays to the global frame of reference (e.g. rotated and translated)
+        assuming they are in the object frame of reference
+        Args:
+            points: (numpy.array) two dimensional array with two columns shape (n, 2) where the first
+                    column is interpreted as the x coordinate and the second the y coordinate.
+
+        Returns:
+            (numpy.array of shape n, 2) with the transformed coordinates
+        """
 
         # transform points
         rays[:, :2] = self.points_to_object_frame_of_reference(rays[:, :2])
@@ -149,38 +179,6 @@ class Aperture(Element):
             (point, line1, line2) lines plotted
         """
 
-        if self.blocker_diameter == float('+Inf'):
-            blocker_diameter = 2 * self.diameter
-        else:
-            blocker_diameter = self.blocker_diameter
-
-        points = np.array([[0., blocker_diameter],
-                           [0., self.diameter],
-                           [0., -self.diameter],
-                           [0., -blocker_diameter]]).T / 2.0
-
-        yticks = np.arange(points[1, 1], points[1, 0]+0.1, 1.0)
-        yticks = np.hstack((yticks, -yticks))
-        yticks_x = np.stack((np.zeros_like(yticks), np.ones_like(yticks) * 0.4))
-        yticks_y = np.stack((yticks, yticks))
-        yticks = np.stack((yticks_x, yticks_y))
-
-        if self.theta != 0.:
-            r = rotation_matrix(self.theta)
-            points = np.dot(r, points)
-            yticks[:, 0, :] = np.dot(r, yticks[:, 0, :])
-            yticks[:, 1, :] = np.dot(r, yticks[:, 1, :])
-
-        origin = np.array(self.origin)
-        points = points + origin[:, None]
-        yticks = yticks + origin[:, None, None]
-
-        props = {'color': 'black', 'linewidth': 2}
-
-        lines = ax.plot(origin[0, None], origin[1, None], marker='x', linestyle='', color='black')
-        lines += ax.plot(yticks[0, :, :], yticks[1, :, :], color='black')
-        lines += ax.plot(points[0, :2], points[1, :2], **props)
-        lines += ax.plot(points[0, 2:], points[1, 2:], **props)
 
         return lines
 
