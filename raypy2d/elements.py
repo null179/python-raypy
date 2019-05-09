@@ -4,6 +4,7 @@ import numpy as np
 
 from .utils import rotation_matrix
 from .rays import propagate
+from . import plotting
 
 
 class RotateObject:
@@ -60,7 +61,6 @@ class RotateObject:
 
         return points
 
-
     def to_element_frame_of_reference(self, rays):
         """
         transform the passed rays to the global frame of reference (e.g. rotated and translated)
@@ -96,14 +96,18 @@ class RotateObject:
 
 class Element(RotateObject):
 
-    def __init__(self, origin=[0., 0.], theta=0.):
+    def __init__(self, aperture: float, origin=[0., 0.], theta=0.):
         """
         Creates an optical element
         Args:
+            aperture: aperture of the element
             origin: position of the center of the element
             theta: rotation angle in degrees of element (with respect the abscissa)
         """
         RotateObject.__init__(self, origin, theta)
+
+        self.aperture = aperture
+
         self.matrix = np.eye(2)
         self.mirroring = False
 
@@ -144,6 +148,22 @@ class Element(RotateObject):
     def intersection_of(self, rays):
         return rays[:,:2]
 
+    def plot(self, ax: Axes):
+        """
+        Plots the element position
+        Args:
+            ax: (Axes) the axes to plot the element into
+
+        Returns:
+            (point, line1, line2) lines plotted
+        """
+
+        # plot the origin
+        plotted_objects = plotting.plot_origin(ax, self.origin)
+        plotted_objects += plotting.plot_aperture(ax, self)
+
+        return plotted_objects
+
 
 class Aperture(Element):
 
@@ -159,11 +179,11 @@ class Aperture(Element):
 
         assert diameter >= 0.
         assert blocker_diameter > diameter
-
-        self.diameter = diameter
         self.blocker_diameter = blocker_diameter
 
-        Element.__init__(self, origin, theta)
+        Element.__init__(self, diameter, origin, theta)
+
+        self.diameter = self.aperture
 
     def block(self, rays):
         rays[np.abs(rays[:,1]) > self.diameter / 2., 2] = np.nan
@@ -176,11 +196,14 @@ class Aperture(Element):
             ax: (Axes) the axes to plot the aperture into
 
         Returns:
-            (point, line1, line2) lines plotted
+            (tuple) plotted objects
         """
 
+        plotted_objects = Element.plot(self, ax)
+        plotted_objects += plotting.plot_aperture(ax, self)
+        plotted_objects += plotting.plot_blocker(ax, self, self.blocker_diameter)
 
-        return lines
+        return plotted_objects
 
 
 class Mirror(Aperture):
@@ -202,42 +225,22 @@ class Mirror(Aperture):
 
     def plot(self, ax: Axes):
         """
-        Plots the aperture into the passed matplotlib axes
+        Plots the mirror into the passed matplotlib axes
         Args:
-            ax: (Axes) the axes to plot the aperture into
+            ax: (Axes) the axes to plot the mirror into
 
         Returns:
-            (point, line1, line2) lines plotted
+            (tuple) plotted objects
         """
 
-        points = np.array([[0., self.diameter],
-                           [0., -self.diameter]]).T / 2.0
+        plotted_objects = Element.plot(self, ax)
+        plotted_objects += plotting.plot_aperture(ax, self, **plotting.wall_properties)
+        plotted_objects += plotting.plot_blocker(ax, self, self.blocker_diameter)
 
-        yticks = np.arange(points[1, 1], points[1, 0] + 0.1, 1.0)
-        yticks_x = np.stack((np.zeros_like(yticks), -np.ones_like(yticks) * 0.4))
-        yticks_y = np.stack((yticks, yticks))
-        yticks = np.stack((yticks_x, yticks_y))
-
-        if self.theta != 0.:
-            r = rotation_matrix(self.theta)
-            points = np.dot(r, points)
-            yticks[:, 0, :] = np.dot(r, yticks[:, 0, :])
-            yticks[:, 1, :] = np.dot(r, yticks[:, 1, :])
-
-        origin = np.array(self.origin)
-        points = points + origin[:, None]
-        yticks = yticks + origin[:, None, None]
-
-        props = { 'color': 'black', 'linewidth': 2}
-
-        lines = ax.plot(origin[0, None], origin[1, None], marker='x', linestyle='', color='black')
-        lines += ax.plot(yticks[0, :, :], yticks[1, :, :], color='black')
-        lines += ax.plot(points[0, :], points[1, :], **props)
-
-        return lines
+        return plotted_objects
 
 
-class Lens(Mirror):
+class Lens(Aperture):
 
     def __init__(self, focal_length: float, diameter: float, origin=[0., 0.], theta=0.,
                  blocker_diameter: float = float('+Inf')):
@@ -262,48 +265,38 @@ class Lens(Mirror):
 
     def plot(self, ax: Axes):
         """
-        Plots the aperture into the passed matplotlib axes
+        Plots the lens into the passed matplotlib axes
         Args:
-            ax: (Axes) the axes to plot the aperture into
+            ax: (Axes) the axes to plot the lens into
 
         Returns:
-            (point, line1, line2) lines plotted
+            (tuple) plotted objects
         """
 
-        points = np.array([[0., self.diameter],
-                           [0., -self.diameter]]).T / 2.0
-
-        arc_ratio = 0.02
-        arc_radius_factor = (0.5*arc_ratio + 0.125 * 1./arc_ratio)
-        m1 = np.array([self.diameter * (arc_radius_factor - arc_ratio), 0])
-        m2 = np.array([-self.diameter * (arc_radius_factor - arc_ratio), 0])
-
-        if self.theta != 0.:
-            r = rotation_matrix(self.theta)
-            points = np.dot(r, points)
-            m1 = np.dot(r, m1)
-            m2 = np.dot(r, m2)
-
-        origin = np.array(self.origin)
-        points = points + origin[:, None]
-        m1 = m1 + origin
-        m2 = m2 + origin
-
-        props = { 'color': 'black', 'linewidth': 1 if self.draw_arcs else 2}
-
-        lines = ax.plot(origin[0, None], origin[1, None], marker='x', linestyle='', color='black')
-        lines += ax.plot(points[0, :], points[1, :], **props)
+        plotted_objects = Aperture.plot(self, ax)
 
         if self.draw_arcs:
+
+            arc_ratio = 0.02
+            arc_radius_factor = (0.5*arc_ratio + 0.125 * 1./arc_ratio)
+            m = np.array([[self.diameter * (arc_radius_factor - arc_ratio), 0],
+                         [-self.diameter * (arc_radius_factor - arc_ratio), 0]])
+
+            m = self.points_to_global_frame_of_reference(m)
+
             r = arc_radius_factor * self.diameter
             a = 2*np.arctan(2.*arc_ratio)*180./np.pi
-            ax.add_patch(Arc(m1, 2*r, 2*r, self.theta, 180.-a, 180.+a, color='black', linewidth=2))
-            ax.add_patch(Arc(m2, 2*r, 2*r, self.theta, -a, +a, color='black', linewidth=2))
+            arc = Arc(m[0, :], 2*r, 2*r, self.theta, 180.-a, 180.+a, **plotting.outline_properties.copy())
+            ax.add_patch(arc)
+            plotted_objects += (arc,)
+            arc = Arc(m[1, :], 2*r, 2*r, self.theta, -a, +a, **plotting.outline_properties.copy())
+            ax.add_patch(arc)
+            plotted_objects += (arc,)
 
-        return lines
+        return plotted_objects
 
 
-class ParabolicMirror(Lens):
+class ParabolicMirror(Aperture):
 
     def __init__(self, focal_length: float, diameter: float, origin=[0., 0.], theta=0.,
                  blocker_diameter: float = float('+Inf')):
@@ -345,36 +338,25 @@ class ParabolicMirror(Lens):
             ax: (Axes) the axes to plot the parabolic mirror into
 
         Returns:
-            (point, line1, line2) lines plotted
+            (tuple) plotted objects
         """
 
+        plotted_objects = Aperture.plot(self, ax)
+
         y = np.linspace(-self.diameter/2.,self.diameter/2.)
-        points = np.stack((1./(4*self.f)*y**2, y))
 
+        points = np.stack((1./(4*self.f)*y**2, y)).T
 
-        yticks = np.arange(y[0], y[-1] + 0.1, 1.0)
-        yticks_x = 1./(4*self.f)*yticks**2
-        yticks_x = np.stack((yticks_x, yticks_x-np.ones_like(yticks) * 0.4))
-        yticks_y = np.stack((yticks, yticks))
-        yticks = np.stack((yticks_x, yticks_y))
+        ticks = plotting.blocker_ticks(y[0], y[-1])
+        ticks[:, 0] = 1./(4*self.f)*ticks[:,1]**2
 
-        if self.theta != 0.:
-            r = rotation_matrix(self.theta)
-            points = np.dot(r, points)
-            yticks[:, 0, :] = np.dot(r, yticks[:, 0, :])
-            yticks[:, 1, :] = np.dot(r, yticks[:, 1, :])
+        points = self.points_to_global_frame_of_reference(points)
+        ticks = self.points_to_global_frame_of_reference(ticks)
 
-        origin = np.array(self.origin)
-        points = points + origin[:, None]
-        yticks = yticks + origin[:, None, None]
+        plotted_objects += plotting.plot_wall(ax, points)
+        plotted_objects += plotting.plot_blocker_ticks(ax, ticks)
 
-        props = { 'color': 'black', 'linewidth': 2}
-
-        lines = ax.plot(origin[0, None], origin[1, None], marker='x', linestyle='', color='black')
-        lines += ax.plot(yticks[0, :, :], yticks[1, :, :], color='black')
-        lines += ax.plot(points[0, :], points[1, :], **props)
-
-        return lines
+        return plotted_objects
 
 
 class DiffractionGrating(Mirror):

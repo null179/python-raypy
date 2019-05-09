@@ -1,6 +1,7 @@
 import numpy as np
 from raypy2d.rays import Rays
 
+
 def test_rays_object():
     """
     test the ray interpretation of a numpy array
