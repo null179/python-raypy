@@ -1,6 +1,6 @@
 from matplotlib import pyplot as plt
 from raypy2d.elements import Aperture, Lens, ParabolicMirror, Mirror, DiffractionGrating
-from raypy2d.rays import propagate, ray_fan
+from raypy2d.rays import propagate, point_source_rays
 from raypy2d.paths import OpticalPath, Object
 import numpy as np
 
@@ -10,6 +10,7 @@ def test_plot_aperture():
     test the plot function of the aperture
     """
     ax = plt.gca()
+    ax.axis('equal')
     a = Aperture(diameter=5., origin=[1., 3.], theta=np.pi / 2.34, blocker_diameter=10.)
     a.plot(ax)
     plt.show()
@@ -35,7 +36,7 @@ def test_some_rays():
 
     rays = []
 
-    r = ray_fan([0., 1.], angle=[-50, 50])
+    r = point_source_rays([0., 1.], angle=[-50, 50])
 
     #r = np.array([[0., 1., 45.*np.pi/180.]])
     #r = first_element.to_global_frame_of_reference(r)
@@ -66,7 +67,7 @@ def test_some_rays_with_mirror():
 
     rays = []
 
-    r = ray_fan([0., 1.], angle=[-50, 50])
+    r = point_source_rays([0., 1.], angle=[-50, 50])
 
     #r = np.array([[0., 1., 45.*np.pi/180.]])
     #r = first_element.to_global_frame_of_reference(r)

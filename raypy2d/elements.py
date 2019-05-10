@@ -3,7 +3,7 @@ from matplotlib.patches import Arc, Circle
 import numpy as np
 
 from .utils import rotation_matrix
-from .rays import propagate
+from .rays import propagate, Rays
 from . import plotting
 
 
@@ -35,8 +35,9 @@ class RotateObject:
         points = points - self.origin[None, :]
 
         # rotation
-        r = rotation_matrix(-self.theta)
-        points = np.dot(r, points.T).T
+        if self.theta != 0.:
+            r = rotation_matrix(-self.theta)
+            points = np.dot(r, points.T).T
 
         return points
 
@@ -53,43 +54,44 @@ class RotateObject:
         """
 
         # rotation
-        r = rotation_matrix(self.theta)
-        points = np.dot(r, points.T).T
+        if self.theta != 0.:
+            r = rotation_matrix(self.theta)
+            points = np.dot(r, points.T).T
 
         # translation
         points = points + self.origin[None, :]
 
         return points
 
-    def to_element_frame_of_reference(self, rays):
+    def to_element_frame_of_reference(self, rays: Rays):
         """
         transform the passed rays to the global frame of reference (e.g. rotated and translated)
         assuming they are in the object frame of reference
         Args:
-            points: (numpy.array) two dimensional array with two columns shape (n, 2) where the first
+            rays: (numpy.array) two dimensional array with two columns shape (n, 2) where the first
                     column is interpreted as the x coordinate and the second the y coordinate.
 
         Returns:
-            (numpy.array of shape n, 2) with the transformed coordinates
+            (Rays) with the transformed coordinates
         """
 
         # transform points
-        rays[:, :2] = self.points_to_object_frame_of_reference(rays[:, :2])
+        rays.points = self.points_to_object_frame_of_reference(rays.points)
 
         # rotate ray direction
         tan_theta = np.tan(self.theta*np.pi/180.)
-        rays[:, 2] = (rays[:, 2] - tan_theta) / (1. + tan_theta * rays[:, 2])
+        rays.tan_theta = (rays.tan_theta - tan_theta) / (1. + tan_theta * rays.tan_theta)
 
         return rays
 
-    def to_global_frame_of_reference(self, rays):
+    def to_global_frame_of_reference(self, rays: Rays):
 
         # translation
-        rays[:, :2] = self.points_to_global_frame_of_reference(rays[:, :2])
+        rays.points = self.points_to_global_frame_of_reference(rays.points)
 
         # rotate ray direction
         tan_theta = np.tan(self.theta*np.pi/180.)
-        rays[:, 2] = (tan_theta + rays[:, 2]) / (1. - tan_theta * rays[:, 2])
+        rays.tan_theta = (tan_theta + rays.tan_theta) / (1. - tan_theta * rays.tan_theta)
 
         return rays
 
@@ -111,30 +113,30 @@ class Element(RotateObject):
         self.matrix = np.eye(2)
         self.mirroring = False
 
-    def trace_in_element_frame_of_reference(self, rays):
+    def trace_in_element_frame_of_reference(self, rays: Rays):
 
         # propagation in air
         rays = propagate(rays, 0.)
 
-        rays[:, :2] = self.intersection_of(rays)
+        rays.points = self.intersection_with(rays)
 
         rays = self.transform_rays(rays)
 
         if self.mirroring:
-            rays[:, 2] = -rays[:, 2]
+            rays.points = -rays.points
 
         rays = self.block(rays)
 
         return rays
 
-    def transform_rays(self, rays):
+    def transform_rays(self, rays: Rays):
 
         # ABCD transformation of element
-        rays[:, 1:3] = np.dot(self.matrix, rays[:, 1:3].T).T
+        rays.za = np.dot(self.matrix, rays.za.T).T
 
         return rays
 
-    def trace(self, rays):
+    def trace(self, rays: Rays):
 
         rays = self.to_element_frame_of_reference(rays)
         rays = self.trace_in_element_frame_of_reference(rays)
@@ -142,11 +144,11 @@ class Element(RotateObject):
 
         return rays
 
-    def block(self, rays):
+    def block(self, rays: Rays):
         return rays
 
-    def intersection_of(self, rays):
-        return rays[:,:2]
+    def intersection_with(self, rays: Rays):
+        return rays.points
 
     def plot(self, ax: Axes):
         """
@@ -185,8 +187,8 @@ class Aperture(Element):
 
         self.diameter = self.aperture
 
-    def block(self, rays):
-        rays[np.abs(rays[:,1]) > self.diameter / 2., 2] = np.nan
+    def block(self, rays: Rays):
+        rays.array[np.abs(rays.y) > self.diameter / 2., 2] = np.nan
         return rays
 
     def plot(self, ax: Axes):
@@ -315,21 +317,21 @@ class ParabolicMirror(Aperture):
         self.mirroring = True
         self.matrix[1, 0] *= -1
 
-    def intersection_of(self, rays):
+    def intersection_with(self, rays: Rays):
 
-        a = rays[:, 2]
-        y = rays[:, 1]
+        a = rays.tan_theta
+        y = rays.y
         ay = a * y
-        x = (2*np.sqrt(self.f*(self.f - ay)) + ay - 2 * self.f) / rays[:, 2]**2
+        x = (2*np.sqrt(self.f*(self.f - ay)) + ay - 2 * self.f) / a**2
 
         zero_elements = (a == 0)
         if zero_elements.any():
             x[zero_elements] = y[zero_elements] * y[zero_elements] / (4. * self.f)
 
-        rays[:, 0] = -x
-        rays[:, 1] = y - a * x
+        rays.x = -x
+        rays.y = y - a * x
 
-        return rays[:, :2]
+        return rays.points
 
     def plot(self, ax: Axes):
         """
@@ -381,7 +383,7 @@ class DiffractionGrating(Mirror):
         self.grating = grating
         self.default_wavelengths = default_wavelengths
 
-    def transform_rays(self, rays):
+    def transform_rays(self, rays: Rays):
 
         if rays.shape[1] < 4:
             # add a wavelength column

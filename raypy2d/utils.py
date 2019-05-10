@@ -60,3 +60,44 @@ def wavelength_to_rgb(wavelength, gamma=0.8):
         G = 0.0
         B = 0.0
     return R, G, B
+
+
+def assure_number_of_columns(array: np.array, n_columns: int):
+    """
+    Add columns with NaN if the passed array has less then the passed number of columns
+    Args:
+        array: (numpy.array) two-dimensional array
+        n_columns: (int) minimal number of columns
+
+    Returns:
+        (numpy.array) two-dimensional array with minimal number of columns
+
+    """
+
+    new_cols = n_columns - array.shape[1]
+
+    if new_cols > 0:
+        array = np.hstack((array, np.zeros((array.shape[0], new_cols))))
+        array[:, -new_cols:] = np.nan
+
+    return array
+
+def assure_number_of_rows(array: np.array, n_rows: int):
+    """
+    Add rows with NaN if the passed array has less then the passed number of columns
+    Args:
+        array: (numpy.array) two-dimensional array
+        n_rows: (int) minimal number of rows
+
+    Returns:
+        (numpy.array) two-dimensional array with minimal number of rows
+
+    """
+
+    new_rows = n_rows - array.shape[0]
+
+    if new_rows > 0:
+        array = np.vstack((array, np.zeros((new_rows, array.shape[1]))))
+        array[-new_rows:, :] = np.nan
+
+    return array

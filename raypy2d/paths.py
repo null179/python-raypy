@@ -3,7 +3,7 @@ from matplotlib import rc_params
 
 import numpy as np
 from .elements import Element, RotateObject
-from .rays import ray_fan, propagate
+from .rays import point_source_rays, propagate, Rays
 from .utils import wavelength_to_rgb
 
 
@@ -28,12 +28,12 @@ class Object(RotateObject):
         for i, fan in enumerate(self.fans_at):
             y0 = fan * self.height - self.height / 2.
 
-            rays = ray_fan([0, y0], [-75, 75], n=n_rays)
-            rays = np.append(rays, np.ones((rays.shape[0], 1)) * i, axis=1)
+            rays = point_source_rays([0, y0], [-75, 75], n=n_rays)
             rays = self.to_global_frame_of_reference(rays)
-            self.rays.append(rays)
 
-        self.rays = np.vstack(self.rays)
+            self.rays.append(rays.array)
+
+        self.rays = Rays(np.vstack(self.rays))
 
         # transform
         self.rays = self.to_global_frame_of_reference(self.rays)
@@ -59,7 +59,7 @@ class OpticalPath:
         self.elements = []
         self.obj = obj
         if self.obj is None:
-            self.rays = [ray_fan(origin=origin, angle=angle, n=n_rays)]
+            self.rays = [point_source_rays(origin=origin, angle=angle, n=n_rays)]
         else:
             self.rays = [obj.rays]
 
