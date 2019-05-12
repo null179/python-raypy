@@ -7,7 +7,7 @@ import numpy as np
 from matplotlib.axes import Axes
 
 origin_properties = {'color': 'black', 'linestyle': '', 'marker': 'x'}
-wall_properties = {'color': 'darkgrey', 'linewidth': 1}
+wall_properties = {'color': 'black', 'linewidth': 1}
 axis_properties = {'color': 'grey', 'linestyle': '-.', 'linewidth': 0.5}
 outline_properties = {'color': 'grey', 'linestyle': '-', 'linewidth': 1}
 ray_properties = {'linestyle': '-', 'linewidth': 0.5}
@@ -49,7 +49,7 @@ def plot_axis(ax: Axes, points: np.array, **kwargs):
 
 def blocker_ticks(y0, y1, dy: float = 1.0, width: float = 0.4):
 
-    tick_points = np.array(np.arange(y0, y1, dy).tolist() + [y1])
+    tick_points = np.linspace(y0, y1, np.maximum(2, np.floor((y1 - y0) / dy).astype(int)))
     tick_points_from = np.stack((np.zeros_like(tick_points), tick_points)).T
     tick_points_to = np.stack((np.ones_like(tick_points) * width, tick_points)).T
 

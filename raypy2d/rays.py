@@ -7,12 +7,12 @@ from .utils import assure_number_of_columns
 from . import plotting
 
 
-def _view_property(*args):
+def _view_property(*args, attr='array'):
     def _get(self):
-        return operator.getitem(self.array, args)
+        return operator.getitem(getattr(self, attr), args)
 
     def _set_x(self, x):
-        operator.setitem(self.array, args, x)
+        operator.setitem(getattr(self, attr), args, x)
 
     return property(_get, _set_x)
 
@@ -50,15 +50,13 @@ class Rays:
     points = _view_property(slice(None), slice(None, 2))
     za = _view_property(slice(None), slice(1, 3))
 
+    properties_array = _view_property(slice(None), slice(3, None))
+
     def copy(self):
         return Rays(self.array.copy())
 
     def store(self):
-        self.arrays.append(self.array.copy())
-
-    def __add__(self, other):
-        """ combines the rays with other rays """
-        return np.vstack((self.array, other.array))
+        self.arrays.append(self.array[:,:3].copy())
 
     def traced_rays(self):
 
@@ -78,7 +76,7 @@ class Rays:
 
         return tr
 
-    def to_tracedrays(self):
+    def all(self):
         return TracedRays(self)
 
     def plot(self, ax: Axes):
@@ -92,12 +90,15 @@ class TracedRays:
     def __init__(self, rays: Rays):
 
         self.array = rays.traced_rays()
+        self.properties_array = rays.properties_array
 
     x = _view_property(0, slice(None), slice(None))
     y = _view_property(1, slice(None), slice(None), 1)
     tan_theta = _view_property(2, slice(None), slice(None))
-    group = _view_property(3, slice(None), 0)
-    wavelength = _view_property(4, slice(None), 0)
+
+    group = _view_property(slice(None), attr='properties_array')
+    wavelength = _view_property(4, slice(None), attr='properties_array')
+
     points = _view_property(slice(None, 2), slice(None), slice(None))
 
 
@@ -115,13 +116,13 @@ def propagate(rays: Rays, x: float):
 
     dx = x - rays.x
 
-    rays.y = rays.x + rays.tan_theta * dx
+    rays.y = rays.y + rays.tan_theta * dx
     rays.x = x
 
     return rays
 
 
-def point_source_rays(origin=[0., 0.], angle=[-90., 90.], n: int = 9, group: int = None):
+def point_source_rays(origin=(0., 0.), angle=(-90., 90.), n: int = 9, group: int = None):
     """
     Creates a number of rays from a point source between the specified emission angles
     Args:
@@ -136,10 +137,10 @@ def point_source_rays(origin=[0., 0.], angle=[-90., 90.], n: int = 9, group: int
 
     origin = np.array(origin)
 
-    da = (max(angle) - min(angle)) / float(n + 1)
+    da = (max(angle) - min(angle)) / float(n-1)
     rays = Rays(np.zeros((n, 3)))
     rays.points = origin[None, :]
-    rays.tan_theta = np.tan((np.arange(1, n + 1) * da + min(angle)) * np.pi / 180.)
+    rays.tan_theta = np.tan((np.arange(0, n) * da + min(angle)) * np.pi / 180.)
 
     if group is None:
         group = uuid.uuid1().int >> 64

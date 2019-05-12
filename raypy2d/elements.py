@@ -263,7 +263,7 @@ class Lens(Aperture):
         self.matrix = np.array([[1., 0],
                                 [-1./self.f, 1.]])
 
-        self.draw_arcs = False
+        self.draw_arcs = True
 
     def plot(self, ax: Axes):
         """

@@ -23,7 +23,6 @@ def test_plot_lens():
     ax = plt.gca()
     ax.axis('equal')
     a = Lens(focal_length=10., diameter=5., origin=[1., 3.], theta=20.34, blocker_diameter=10.)
-    a.draw_arcs = True
     a.plot(ax)
     plt.show()
 
@@ -31,15 +30,17 @@ def test_plot_lens():
 def test_some_rays():
 
     first_element = Aperture(5)
-    second_element = Lens(5, 16., [5.,1.], theta=30.)
-    third_element = Lens(10, 8., [10.,3.], theta=-15)
+    second_element = Lens(5, 16., [5.,1.], theta=30., blocker_diameter=18.)
+    third_element = Lens(10, 8., [10.,3.], theta=-15, blocker_diameter=10.)
 
     rays = []
 
-    r = point_source_rays([0., 1.], angle=[-50, 50])
+    r = point_source_rays([-4., 1.], angle=[-50., 50], n=21)
 
     #r = np.array([[0., 1., 45.*np.pi/180.]])
     #r = first_element.to_global_frame_of_reference(r)
+    rays.append(r.array.copy())
+    r = first_element.trace(r)
     rays.append(r.array.copy())
     r = second_element.trace(r)
     rays.append(r.array.copy())
