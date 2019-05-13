@@ -135,13 +135,16 @@ def test_diffraction_grating():
 
 
 def test_imaging_path_with_diffraction_grating():
+
+    raypy2d.elements.plot_blockers = False
+
     obj = Object(2.0, n_rays=5)
     path = OpticalPath(obj)
 
     path.append(Lens(3, 16., [3., 0]))
     path.append(DiffractionGrating(1.6, 16., [8, 0.]))
     # path.append(Lens(5, 16., [10.,0]))
-    path.append(ParabolicMirror(16., 26., [20, 5.5], theta=160.))
+    path.append(ParabolicMirror(16., 35., [20, 5.5], theta=160.))
 
     # path.append(Lens(3, 16., [15, 1.], theta=10.))
     path.propagate(-5)

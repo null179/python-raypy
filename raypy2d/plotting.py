@@ -10,7 +10,7 @@ origin_properties = {'color': 'black', 'linestyle': '', 'marker': 'x'}
 wall_properties = {'color': 'black', 'linewidth': 1, 'linestyle': '-'}
 axis_properties = {'color': 'grey', 'linestyle': '-.', 'linewidth': 0.5}
 outline_properties = {'color': 'grey', 'linestyle': '-', 'linewidth': 1}
-ray_properties = {'linestyle': '-', 'linewidth': 0.5}
+ray_properties = {'color': 'orange', 'linestyle': '-', 'linewidth': 0.5}
 
 
 def plot_origin(ax: Axes, origin: np.array, **kwargs):

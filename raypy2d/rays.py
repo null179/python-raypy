@@ -1,9 +1,11 @@
 import numpy as np
 import operator
+from itertools import cycle
 from matplotlib.axes import Axes
+from matplotlib import rcParams
 
 import uuid
-from .utils import assure_number_of_columns
+from .utils import assure_number_of_columns, wavelength_to_rgb
 from . import plotting
 
 
@@ -54,7 +56,7 @@ class Rays:
     points = _view_property(slice(None), slice(None, 2))
     za = _view_property(slice(None), slice(1, 3))
 
-    properties_array = _view_property(slice(None), slice(3, None))
+    properties_array = _view_property(slice(None), slice(4, None))
 
     def copy(self):
         return Rays(self.array.copy())
@@ -62,6 +64,9 @@ class Rays:
     def store(self):
         self.arrays.append(self.arrays[-1].copy())
         self.arrays[-2] = self.arrays[-2][:, :3].copy()
+
+    def append(self, rays):
+        self.array = np.vstack((self.array, rays.array))
 
     def complete_array(self):
 
@@ -83,7 +88,7 @@ class Rays:
 
         return tr
 
-    def traced_array(self):
+    def traced_rays(self):
         return TracedRays(self)
 
     def plot(self, ax: Axes, **kwargs):
@@ -113,7 +118,42 @@ class TracedRays:
         props = plotting.ray_properties.copy()
         props.update(kwargs)
 
-        ax.plot(self.x.T, self.y.T, **props)
+        self.wavelength[np.isnan(self.wavelength)] = 0.
+        self.group[np.isnan(self.group)] = 0.
+
+        plt_groups = np.unique(self.properties_array, axis=0)
+
+        if len(plt_groups) > 1:
+
+            if (plt_groups[:, 1] == 0.).all():
+                prop_cycle = iter(rcParams['axes.prop_cycle'])
+                for plt_props in plt_groups:
+                    group_props = props.copy()
+                    group_props.update({'color': next(prop_cycle)['color']})
+                    I = (self.properties_array == plt_props).all(axis=1)
+                    ax.plot(self.x[I,:].T, self.y[I,:].T, **group_props)
+
+            else:
+                prop_cycle = iter(cycle(['-', '--', '-.', ':']))
+                g_map = {g: next(prop_cycle) for g in np.unique(plt_groups[:,0])}
+                linestyles = list(map(lambda g: g_map[g], plt_groups[:,0]))
+                for i, plt_props in enumerate(plt_groups):
+                    _, w = plt_props
+                    group_props = props.copy()
+                    if w != 0:
+                        group_props.update({'color': wavelength_to_rgb(w)})
+                    group_props.update({'linestyle': linestyles[i]})
+                    I = (self.properties_array == plt_props).all(axis=1)
+                    ax.plot(self.x[I, :].T, self.y[I, :].T, **group_props)
+
+        elif len(plt_groups) > 0:
+            w = plt_groups[0][1]
+            group_props = props.copy()
+            if w != 0:
+                group_props.update({'color': wavelength_to_rgb(w)})
+            ax.plot(self.x.T, self.y.T, **group_props)
+        else:
+            ax.plot(self.x.T, self.y.T, **props)
 
 
 def propagate(rays: Rays, x: float):
@@ -139,7 +179,7 @@ def propagate(rays: Rays, x: float):
     return rays
 
 
-def point_source_rays(origin=(0., 0.), angle=(-90., 90.), n: int = 9, group: int = None):
+def point_source_rays(origin=(0., 0.), angle=(-50., 50.), n: int = 9, group: int = None):
     """
     Creates a number of rays from a point source between the specified emission angles
     Args:

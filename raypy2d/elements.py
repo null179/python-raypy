@@ -79,13 +79,13 @@ class RotateObject:
         # transform points
         rays.points = self.points_to_object_frame_of_reference(rays.points)
 
-        # rotate ray direction
-        tan_theta = np.tan(self.theta * np.pi / 180.)
-        rays.tan_theta = (rays.tan_theta - tan_theta) / (1. + tan_theta * rays.tan_theta)
-
         # rotate the forward information
         rays_theta = np.arctan(rays.tan_theta) * 180. / np.pi + (rays.forward < 0.) * 180.
         rays_theta = rays_theta - self.theta
+
+        # rotate ray direction
+        tan_theta = np.tan(self.theta * np.pi / 180.)
+        rays.tan_theta = (rays.tan_theta - tan_theta) / (1. + tan_theta * rays.tan_theta)
 
         m = np.floor(rays_theta / 360.)
         rays_theta = (rays_theta - m * 360.)
@@ -99,15 +99,14 @@ class RotateObject:
         # translation
         rays.points = self.points_to_global_frame_of_reference(rays.points)
 
-        # rotate ray direction
-        tan_theta = np.tan(self.theta * np.pi / 180.)
-        rays.tan_theta = (tan_theta + rays.tan_theta) / (1. - tan_theta * rays.tan_theta)
-
         # rotate the forward information
         rays_theta = np.arctan(rays.tan_theta) * 180. / np.pi + (rays.forward < 0.) * 180.
         new_theta = rays_theta + self.theta
         rays.forward = ((new_theta < 90.) | (new_theta > 270.)).astype(float) - 0.5
 
+        # rotate ray direction
+        tan_theta = np.tan(self.theta * np.pi / 180.)
+        rays.tan_theta = (tan_theta + rays.tan_theta) / (1. - tan_theta * rays.tan_theta)
         return rays
 
 
@@ -386,7 +385,7 @@ class ParabolicMirror(Aperture):
         return plotted_objects
 
 
-class DiffractionGrating(Mirror):
+class DiffractionGrating(Aperture):
 
     def __init__(self, grating: float, diameter: float, origin=[0., 0.], theta=0.,
                  blocker_diameter: float = float('+Inf'),
@@ -410,51 +409,33 @@ class DiffractionGrating(Mirror):
 
     def transform_rays(self, rays: Rays):
 
-        if rays.shape[1] < 4:
-            # add a wavelength column
-            rays = np.hstack((rays, np.ones((rays.shape[0], 2)) * self.default_wavelengths[0]))
-            rays[:, 3] = 0
+        I_split = np.isnan(rays.wavelength)
+        rays.wavelength[I_split] = self.default_wavelengths[0]
 
-            for l in self.default_wavelengths[1:]:
-                rays_new = rays.copy()
-                rays_new[:, 4] = l
-                rays = np.vstack((rays, rays_new))
+        original_rays = rays.array[I_split, :].copy()
+        for w in self.default_wavelengths[1:]:
+            new_rays = Rays(original_rays)
+            new_rays.wavelength = w
+            rays.append(new_rays)
 
-        elif rays.shape[1] < 5:
-            rays = np.hstack((rays, np.ones((rays.shape[0], 1)) * self.default_wavelengths[0]))
-
-            for l in self.default_wavelengths[1:]:
-                rays_new = rays.copy()
-                rays_new[:, 4] = l
-                rays = np.vstack((rays, rays_new))
-
-        rays[:, 2] = np.tan(np.arcsin(rays[:, 4] / self.grating / 1000. - np.sin(np.arctan(rays[:, 2]))))
+        rays.tan_theta = np.tan(np.arcsin(rays.wavelength / self.grating / 1000. - np.sin(np.arctan(rays.tan_theta))))
 
         return rays
 
     def plot(self, ax: Axes):
         """
-        Plots the aperture into the passed matplotlib axes
+        Plots the diffraction grating into the passed matplotlib axes
         Args:
-            ax: (Axes) the axes to plot the aperture into
+            ax: (Axes) the axes to plot the grating into
 
         Returns:
-            (point, line1, line2) lines plotted
+            (tuple) plotted objects
         """
 
-        points = np.array([[0., self.diameter],
-                           [0., -self.diameter]]).T / 2.0
+        plotted_objects = Element.plot(self, ax)
+        plotted_objects += plotting.plot_aperture(ax, self)
 
-        if self.theta != 0.:
-            r = rotation_matrix(self.theta)
-            points = np.dot(r, points)
+        if plot_blockers:
+            plotted_objects += plotting.plot_blocker(ax, self, self.blocker_diameter)
 
-        origin = np.array(self.origin)
-        points = points + origin[:, None]
-
-        props = {'color': 'black', 'linewidth': 2}
-
-        lines = ax.plot(origin[0, None], origin[1, None], marker='x', linestyle='', color='black')
-        lines += ax.plot(points[0, :], points[1, :], **props)
-
-        return lines
+        return plotted_objects

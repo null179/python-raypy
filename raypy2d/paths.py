@@ -54,68 +54,29 @@ class Object(RotateObject):
 
 class OpticalPath:
 
-    def __init__(self, obj: Object = None, origin=[0., 0.], angle=[-50, 50], n_rays=9):
+    def __init__(self, obj: Object = None, **kwargs):
 
         self.elements = []
         self.obj = obj
         if self.obj is None:
-            self.rays = [point_source_rays(origin=origin, angle=angle, n=n_rays)]
+            self.rays = point_source_rays(**kwargs)
         else:
-            self.rays = [obj.rays]
+            self.rays = obj.rays
+        self.rays.store()
 
     def append(self, element: Element):
         self.elements.append(element)
-        self.rays.append(element.trace(self.rays[-1].copy()))
+        self.rays = element.trace(self.rays)
+        self.rays.store()
 
     def propagate(self, x):
-        self.rays.append(propagate(self.rays[-1].copy(), x))
-
-    def _3d_array_of_rays(self):
-
-        cols = max([arr.shape[1] for arr in self.rays])
-        rows = max([arr.shape[0] for arr in self.rays])
-
-        arrs = []
-        for rayarr in self.rays:
-            new_cols = cols - rayarr.shape[1]
-            new_rows = rows - rayarr.shape[0]
-
-            if new_cols > 0:
-                rayarr = np.hstack((rayarr, np.ones((rayarr.shape[0], new_cols))))
-                rayarr[:, -new_cols:] = np.nan
-
-            if new_rows > 0:
-                rayarr = np.vstack((rayarr, np.ones((new_rows, rayarr.shape[1]))))
-                rayarr[-new_rows:, :] = np.nan
-
-            arrs.append(rayarr)
-
-        return np.asarray(arrs)
+        self.rays = propagate(self.rays, x)
+        self.rays.store()
 
     def plot(self, ax):
 
         # plot rays
-        rays = self._3d_array_of_rays()
-
-        if 4 < rays.shape[2]:
-            for i in range(rays.shape[1]):
-                color = rays[:, i, 4]
-                color = color[~np.isnan(color)][0]
-                color = wavelength_to_rgb(color)
-                linestyle = rays[:, i, 3]
-                linestyle = linestyle[~np.isnan(linestyle)].astype(int)[0]
-                linestyle = (['-', '--', '-.'] * 10)[linestyle]
-                ax.plot(rays[:, i, 0], rays[:, i, 1], color=color, linestyle=linestyle)
-
-        elif 3 < rays.shape[2]:
-
-            cycler = iter(rc_params()['axes.prop_cycle'])
-
-            for c in set(rays[0, :, 3].tolist()):
-                I = (rays[0, :, 3] == c).squeeze()
-                ax.plot(rays[:, I, 0], rays[:, I, 1], color=next(cycler)['color'])
-        else:
-            ax.plot(rays[:, :, 0], rays[:, :, 1], color='orange')
+        self.rays.plot(ax)
 
         # plot all elements
         for element in self.elements:
