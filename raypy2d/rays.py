@@ -56,9 +56,10 @@ class Rays:
         return Rays(self.array.copy())
 
     def store(self):
-        self.arrays.append(self.array[:,:3].copy())
+        self.arrays.append(self.arrays[-1].copy())
+        self.arrays[-2] = self.arrays[-2][:, :3].copy()
 
-    def traced_rays(self):
+    def complete_array(self):
 
         rows = max([arr.shape[0] for arr in self.arrays])
 
@@ -72,34 +73,43 @@ class Rays:
 
             arrs.append(arr)
 
-        tr = np.transpose(np.asarray(arrs), (1, 2, 0))
+        arrs[-1] = arrs[-1][:, :3]
+
+        tr = np.transpose(np.asarray(arrs), (1, 0, 2))
 
         return tr
 
-    def all(self):
+    def traced_array(self):
         return TracedRays(self)
 
-    def plot(self, ax: Axes):
+    def plot(self, ax: Axes, **kwargs):
 
         rs = self.traced_rays()
-        ax.plot(rs[:, 0, :], rs[:, 1, 0], **plotting.ray_properties)
+        rs.plot(ax, **kwargs)
 
 
 class TracedRays:
 
     def __init__(self, rays: Rays):
 
-        self.array = rays.traced_rays()
-        self.properties_array = rays.properties_array
+        self.array = rays.complete_array()
+        self.properties_array = rays.properties_array.copy()
 
-    x = _view_property(0, slice(None), slice(None))
-    y = _view_property(1, slice(None), slice(None), 1)
-    tan_theta = _view_property(2, slice(None), slice(None))
+    x = _view_property(slice(None), slice(None), 0)
+    y = _view_property(slice(None), slice(None), 1)
+    tan_theta = _view_property(slice(None), slice(None), 2)
 
-    group = _view_property(slice(None), attr='properties_array')
-    wavelength = _view_property(4, slice(None), attr='properties_array')
+    group = _view_property(slice(None), 0, attr='properties_array')
+    wavelength = _view_property(slice(None), 1, attr='properties_array')
 
-    points = _view_property(slice(None, 2), slice(None), slice(None))
+    points = _view_property(slice(None), slice(None), slice(None, 2))
+
+    def plot(self, ax: Axes, **kwargs):
+
+        props = plotting.ray_properties.copy()
+        props.update(kwargs)
+
+        ax.plot(self.x.T, self.y.T, **props)
 
 
 def propagate(rays: Rays, x: float):

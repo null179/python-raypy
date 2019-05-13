@@ -113,7 +113,7 @@ class Element(RotateObject):
         self.matrix = np.eye(2)
         self.mirroring = False
 
-    def trace_in_element_frame_of_reference(self, rays: Rays):
+    def trace_in_element_frame_of_reference(self, rays: Rays) -> Rays:
 
         # propagation in air
         rays = propagate(rays, 0.)
@@ -129,14 +129,14 @@ class Element(RotateObject):
 
         return rays
 
-    def transform_rays(self, rays: Rays):
+    def transform_rays(self, rays: Rays) -> Rays:
 
         # ABCD transformation of element
         rays.za = np.dot(self.matrix, rays.za.T).T
 
         return rays
 
-    def trace(self, rays: Rays):
+    def trace(self, rays: Rays) -> Rays:
 
         rays = self.to_element_frame_of_reference(rays)
         rays = self.trace_in_element_frame_of_reference(rays)
@@ -144,7 +144,7 @@ class Element(RotateObject):
 
         return rays
 
-    def block(self, rays: Rays):
+    def block(self, rays: Rays) -> Rays:
         return rays
 
     def intersection_with(self, rays: Rays):
@@ -349,14 +349,16 @@ class ParabolicMirror(Aperture):
 
         points = np.stack((1./(4*self.f)*y**2, y)).T
 
-        ticks = plotting.blocker_ticks(y[0], y[-1])
-        ticks[:, 0] = 1./(4*self.f)*ticks[:,1]**2
+        ticks_from, ticks_to = plotting.blocker_ticks(y[0], y[-1])
+        ticks_from[:, 0] = 1./(4*self.f)*ticks_from[:,1]**2
+        ticks_to[:, 0] = 1./(4*self.f)*ticks_to[:,1]**2
 
         points = self.points_to_global_frame_of_reference(points)
-        ticks = self.points_to_global_frame_of_reference(ticks)
+        ticks_from = self.points_to_global_frame_of_reference(ticks_from)
+        ticks_to = self.points_to_global_frame_of_reference(ticks_to)
 
-        plotted_objects += plotting.plot_wall(ax, points)
-        plotted_objects += plotting.plot_blocker_ticks(ax, ticks)
+        plotted_objects += ax.plot(points[:,0], points[:,1], **plotting.wall_properties)
+        plotted_objects += plotting.plot_blocker_ticks(ax, ticks_from, ticks_to)
 
         return plotted_objects
 
