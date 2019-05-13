@@ -1,11 +1,12 @@
 from matplotlib.axes import Axes
-from matplotlib.patches import Arc, Circle
+from matplotlib.patches import Arc
 import numpy as np
 
 from .utils import rotation_matrix
 from .rays import propagate, Rays
 from . import plotting
 
+plot_blockers = True
 
 class RotateObject:
 
@@ -79,8 +80,17 @@ class RotateObject:
         rays.points = self.points_to_object_frame_of_reference(rays.points)
 
         # rotate ray direction
-        tan_theta = np.tan(self.theta*np.pi/180.)
+        tan_theta = np.tan(self.theta * np.pi / 180.)
         rays.tan_theta = (rays.tan_theta - tan_theta) / (1. + tan_theta * rays.tan_theta)
+
+        # rotate the forward information
+        rays_theta = np.arctan(rays.tan_theta) * 180. / np.pi + (rays.forward < 0.) * 180.
+        rays_theta = rays_theta - self.theta
+
+        m = np.floor(rays_theta / 360.)
+        rays_theta = (rays_theta - m * 360.)
+
+        rays.forward = ((rays_theta < 90.) | (rays_theta > 270.)).astype(float) - 0.5
 
         return rays
 
@@ -90,8 +100,13 @@ class RotateObject:
         rays.points = self.points_to_global_frame_of_reference(rays.points)
 
         # rotate ray direction
-        tan_theta = np.tan(self.theta*np.pi/180.)
+        tan_theta = np.tan(self.theta * np.pi / 180.)
         rays.tan_theta = (tan_theta + rays.tan_theta) / (1. - tan_theta * rays.tan_theta)
+
+        # rotate the forward information
+        rays_theta = np.arctan(rays.tan_theta) * 180. / np.pi + (rays.forward < 0.) * 180.
+        new_theta = rays_theta + self.theta
+        rays.forward = ((new_theta < 90.) | (new_theta > 270.)).astype(float) - 0.5
 
         return rays
 
@@ -114,7 +129,6 @@ class Element(RotateObject):
         self.mirroring = False
 
     def trace_in_element_frame_of_reference(self, rays: Rays) -> Rays:
-
         # propagation in air
         rays = propagate(rays, 0.)
 
@@ -122,22 +136,20 @@ class Element(RotateObject):
 
         rays = self.transform_rays(rays)
 
-        if self.mirroring:
-            rays.points = -rays.points
-
         rays = self.block(rays)
 
         return rays
 
     def transform_rays(self, rays: Rays) -> Rays:
-
         # ABCD transformation of element
         rays.za = np.dot(self.matrix, rays.za.T).T
+
+        if self.mirroring:
+            rays.forward = -rays.forward
 
         return rays
 
     def trace(self, rays: Rays) -> Rays:
-
         rays = self.to_element_frame_of_reference(rays)
         rays = self.trace_in_element_frame_of_reference(rays)
         rays = self.to_global_frame_of_reference(rays)
@@ -188,7 +200,9 @@ class Aperture(Element):
         self.diameter = self.aperture
 
     def block(self, rays: Rays):
-        rays.array[np.abs(rays.y) > self.diameter / 2., 2] = np.nan
+        abs_y = np.abs(rays.y)
+        abs_y[np.isnan(abs_y)] = float("+Inf")
+        rays.array[abs_y > self.diameter / 2., 2] = np.nan
         return rays
 
     def plot(self, ax: Axes):
@@ -203,6 +217,7 @@ class Aperture(Element):
 
         plotted_objects = Element.plot(self, ax)
         plotted_objects += plotting.plot_aperture(ax, self)
+
         plotted_objects += plotting.plot_blocker(ax, self, self.blocker_diameter)
 
         return plotted_objects
@@ -222,7 +237,7 @@ class Mirror(Aperture):
         """
 
         Aperture.__init__(self, diameter, origin, theta, blocker_diameter)
-
+        self.matrix = np.diag([1., -1.])
         self.mirroring = True
 
     def plot(self, ax: Axes):
@@ -236,8 +251,10 @@ class Mirror(Aperture):
         """
 
         plotted_objects = Element.plot(self, ax)
-        plotted_objects += plotting.plot_aperture(ax, self, **plotting.wall_properties)
-        plotted_objects += plotting.plot_blocker(ax, self, self.blocker_diameter)
+        plotted_objects += plotting.plot_aperture(ax, self, **plotting.outline_properties)
+
+        if plot_blockers:
+            plotted_objects += plotting.plot_blocker(ax, self, self.blocker_diameter, width=-0.4)
 
         return plotted_objects
 
@@ -261,7 +278,7 @@ class Lens(Aperture):
         self.f = focal_length
 
         self.matrix = np.array([[1., 0],
-                                [-1./self.f, 1.]])
+                                [-1. / self.f, 1.]])
 
         self.draw_arcs = True
 
@@ -275,23 +292,26 @@ class Lens(Aperture):
             (tuple) plotted objects
         """
 
-        plotted_objects = Aperture.plot(self, ax)
+        plotted_objects = Element.plot(self, ax)
+        plotted_objects += plotting.plot_aperture(ax, self)
+
+        if plot_blockers:
+            plotted_objects += plotting.plot_blocker(ax, self, self.blocker_diameter)
 
         if self.draw_arcs:
-
             arc_ratio = 0.02
-            arc_radius_factor = (0.5*arc_ratio + 0.125 * 1./arc_ratio)
+            arc_radius_factor = (0.5 * arc_ratio + 0.125 * 1. / arc_ratio)
             m = np.array([[self.diameter * (arc_radius_factor - arc_ratio), 0],
-                         [-self.diameter * (arc_radius_factor - arc_ratio), 0]])
+                          [-self.diameter * (arc_radius_factor - arc_ratio), 0]])
 
             m = self.points_to_global_frame_of_reference(m)
 
             r = arc_radius_factor * self.diameter
-            a = 2*np.arctan(2.*arc_ratio)*180./np.pi
-            arc = Arc(m[0, :], 2*r, 2*r, self.theta, 180.-a, 180.+a, **plotting.outline_properties.copy())
+            a = 2 * np.arctan(2. * arc_ratio) * 180. / np.pi
+            arc = Arc(m[0, :], 2 * r, 2 * r, self.theta, 180. - a, 180. + a, **plotting.outline_properties.copy())
             ax.add_patch(arc)
             plotted_objects += (arc,)
-            arc = Arc(m[1, :], 2*r, 2*r, self.theta, -a, +a, **plotting.outline_properties.copy())
+            arc = Arc(m[1, :], 2 * r, 2 * r, self.theta, -a, +a, **plotting.outline_properties.copy())
             ax.add_patch(arc)
             plotted_objects += (arc,)
 
@@ -313,23 +333,31 @@ class ParabolicMirror(Aperture):
         """
 
         Lens.__init__(self, focal_length, diameter, origin, theta, blocker_diameter)
-
         self.mirroring = True
-        self.matrix[1, 0] *= -1
+        self.matrix[1, 1] *= -1.0
+
+        self.x_blocker = 1. / (4 * self.f) * (self.diameter / 2.) ** 2
 
     def intersection_with(self, rays: Rays):
-
         a = rays.tan_theta
-        y = rays.y
+        y = rays.y.copy()
         ay = a * y
-        x = (2*np.sqrt(self.f*(self.f - ay)) + ay - 2 * self.f) / a**2
+        x = (2 * np.sqrt(self.f * (self.f - ay)) + ay - 2 * self.f) / a ** 2
 
         zero_elements = (a == 0)
         if zero_elements.any():
             x[zero_elements] = y[zero_elements] * y[zero_elements] / (4. * self.f)
 
+        y = rays.y - a * x
+
+        abs_y = np.abs(y)
+        abs_y[np.isnan(abs_y)] = float("+Inf")
+        I = (abs_y > self.diameter / 2.)
+        x[I] = -self.x_blocker
+        y[I] = rays.y[I] - a[I] * x[I]
+
         rays.x = -x
-        rays.y = y - a * x
+        rays.y = y
 
         return rays.points
 
@@ -343,22 +371,17 @@ class ParabolicMirror(Aperture):
             (tuple) plotted objects
         """
 
-        plotted_objects = Aperture.plot(self, ax)
+        y = np.linspace(-self.diameter / 2., self.diameter / 2.)
 
-        y = np.linspace(-self.diameter/2.,self.diameter/2.)
-
-        points = np.stack((1./(4*self.f)*y**2, y)).T
-
-        ticks_from, ticks_to = plotting.blocker_ticks(y[0], y[-1])
-        ticks_from[:, 0] = 1./(4*self.f)*ticks_from[:,1]**2
-        ticks_to[:, 0] = 1./(4*self.f)*ticks_to[:,1]**2
+        points = np.stack((1. / (4 * self.f) * y ** 2, y)).T
 
         points = self.points_to_global_frame_of_reference(points)
-        ticks_from = self.points_to_global_frame_of_reference(ticks_from)
-        ticks_to = self.points_to_global_frame_of_reference(ticks_to)
 
-        plotted_objects += ax.plot(points[:,0], points[:,1], **plotting.wall_properties)
-        plotted_objects += plotting.plot_blocker_ticks(ax, ticks_from, ticks_to)
+        plotted_objects = Element.plot(self, ax)
+        plotted_objects += ax.plot(points[:, 0], points[:, 1], **plotting.outline_properties)
+
+        if plot_blockers:
+            plotted_objects = plotting.plot_blocker(ax, self, self.blocker_diameter, x=self.x_blocker, width=-0.4)
 
         return plotted_objects
 
@@ -405,7 +428,7 @@ class DiffractionGrating(Mirror):
                 rays_new[:, 4] = l
                 rays = np.vstack((rays, rays_new))
 
-        rays[:, 2] = np.tan(np.arcsin(rays[:, 4]/ self.grating/ 1000. - np.sin(np.arctan(rays[:, 2]))))
+        rays[:, 2] = np.tan(np.arcsin(rays[:, 4] / self.grating / 1000. - np.sin(np.arctan(rays[:, 2]))))
 
         return rays
 
@@ -429,7 +452,7 @@ class DiffractionGrating(Mirror):
         origin = np.array(self.origin)
         points = points + origin[:, None]
 
-        props = { 'color': 'black', 'linewidth': 2}
+        props = {'color': 'black', 'linewidth': 2}
 
         lines = ax.plot(origin[0, None], origin[1, None], marker='x', linestyle='', color='black')
         lines += ax.plot(points[0, :], points[1, :], **props)

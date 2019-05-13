@@ -24,15 +24,18 @@ class Rays:
         Interprets the passed array as a list of rays
         Args:
             array: (numpy.array) two dimensional with shape of (n, m) where m >= 3. Columns 1, 2 are interpreted as x
-                    and y coordinate and column 3 as the tangens of the propagation angle
+                    and y coordinate and column 3 as the propagation angle
         """
 
         assert len(array.shape) == 2
         assert array.shape[0] >= 1  # minimal one ray
-        assert array.shape[1] >= 3  # min. x, y and tan_theta
+        assert array.shape[1] >= 3  # min. x, y and theta
 
         # store a view to array
-        self.arrays = [assure_number_of_columns(array, 5)]
+        self.arrays = [assure_number_of_columns(array, 6)]
+
+        # set default direction to forward
+        self.forward[np.isnan(self.forward)] = 1.0
 
     def _get_array(self):
         return self.arrays[-1]
@@ -45,8 +48,9 @@ class Rays:
     x = _view_property(slice(None), 0)
     y = _view_property(slice(None), 1)
     tan_theta = _view_property(slice(None), 2)
-    group = _view_property(slice(None), 3)
-    wavelength = _view_property(slice(None), 4)
+    forward = _view_property(slice(None), 3)
+    group = _view_property(slice(None), 4)
+    wavelength = _view_property(slice(None), 5)
     points = _view_property(slice(None), slice(None, 2))
     za = _view_property(slice(None), slice(1, 3))
 
@@ -129,6 +133,9 @@ def propagate(rays: Rays, x: float):
     rays.y = rays.y + rays.tan_theta * dx
     rays.x = x
 
+    # block rays travelling in the opposite direction
+    rays.y[np.logical_xor(dx > 0, rays.forward > 0)] = np.nan
+
     return rays
 
 
@@ -148,9 +155,13 @@ def point_source_rays(origin=(0., 0.), angle=(-90., 90.), n: int = 9, group: int
     origin = np.array(origin)
 
     da = (max(angle) - min(angle)) / float(n-1)
-    rays = Rays(np.zeros((n, 3)))
+    rays = Rays(np.zeros((n, 4)))
     rays.points = origin[None, :]
-    rays.tan_theta = np.tan((np.arange(0, n) * da + min(angle)) * np.pi / 180.)
+    angle = np.arange(0, n) * da + min(angle)
+    rays.tan_theta = np.tan(angle * np.pi / 180.)
+    m = np.floor(angle/360.)
+    angle = (angle - m*360.)
+    rays.forward = ((angle < 90.) | (angle > 270.)).astype(float)
 
     if group is None:
         group = uuid.uuid1().int >> 64

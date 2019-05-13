@@ -7,7 +7,7 @@ import numpy as np
 from matplotlib.axes import Axes
 
 origin_properties = {'color': 'black', 'linestyle': '', 'marker': 'x'}
-wall_properties = {'color': 'black', 'linewidth': 1}
+wall_properties = {'color': 'black', 'linewidth': 1, 'linestyle': '-'}
 axis_properties = {'color': 'grey', 'linestyle': '-.', 'linewidth': 0.5}
 outline_properties = {'color': 'grey', 'linestyle': '-', 'linewidth': 1}
 ray_properties = {'linestyle': '-', 'linewidth': 0.5}
@@ -47,19 +47,19 @@ def plot_axis(ax: Axes, points: np.array, **kwargs):
     return ax.plot(points[:, :1], points[:, 1:], **props)
 
 
-def blocker_ticks(y0, y1, dy: float = 1.0, width: float = 0.4):
+def blocker_ticks(y0, y1, dy: float = 1.0, width: float = 0.4, x: float = 0.):
 
     tick_points = np.linspace(y0, y1, np.maximum(2, np.floor((y1 - y0) / dy).astype(int)))
-    tick_points_from = np.stack((np.zeros_like(tick_points), tick_points)).T
-    tick_points_to = np.stack((np.ones_like(tick_points) * width, tick_points)).T
+    tick_points_from = np.stack((np.full_like(tick_points, x), tick_points)).T
+    tick_points_to = np.stack((np.full_like(tick_points, x + width), tick_points)).T
 
     return tick_points_from, tick_points_to
 
 
-def blocker_ticks_symmetric(y0, y1, dy: float = 1.0, width: float = 0.4):
+def blocker_ticks_symmetric(y0, y1, dy: float = 1.0, width: float = 0.4, x: float = 0.):
 
-    tick_points_from, tick_points_to = blocker_ticks(y0, y1, dy, width)
-    tick_points_from2, tick_points_to2 = blocker_ticks(-y1, -y0, dy, width)
+    tick_points_from, tick_points_to = blocker_ticks(y0, y1, dy, width, x=x)
+    tick_points_from2, tick_points_to2 = blocker_ticks(-y1, -y0, dy, width, x=x)
 
     tick_points_from = np.vstack((tick_points_from, tick_points_from2))
     tick_points_to = np.vstack((tick_points_to, tick_points_to2))
@@ -88,7 +88,7 @@ def plot_aperture(ax: Axes, element, **kwargs):
     return plot_axis(ax, points, **kwargs)
 
 
-def plot_blocker(ax: Axes, element, blocker_diameter: float, **kwargs):
+def plot_blocker(ax: Axes, element, blocker_diameter: float, x: float = 0., width=0.4, **kwargs):
 
     blocker_diameter = default_blocker_diameter(element.aperture, blocker_diameter)
 
@@ -96,6 +96,7 @@ def plot_blocker(ax: Axes, element, blocker_diameter: float, **kwargs):
                        [0., element.aperture],
                        [0., -element.aperture],
                        [0., -blocker_diameter]]) / 2.0
+    points[:, 0] = x
 
     points = element.points_to_global_frame_of_reference(points)
 
@@ -107,7 +108,7 @@ def plot_blocker(ax: Axes, element, blocker_diameter: float, **kwargs):
     plotted_objects += plot_wall(ax, points[2, :], points[3, :], **kwargs)
 
     # plot the blocker ticks
-    ticks_from, ticks_to = blocker_ticks_symmetric(element.aperture/2., blocker_diameter/2.)
+    ticks_from, ticks_to = blocker_ticks_symmetric(element.aperture/2., blocker_diameter/2., x=x, width=width)
     ticks_from = element.points_to_global_frame_of_reference(ticks_from)
     ticks_to = element.points_to_global_frame_of_reference(ticks_to)
     plotted_objects += plot_blocker_ticks(ax, ticks_from, ticks_to, **kwargs)
