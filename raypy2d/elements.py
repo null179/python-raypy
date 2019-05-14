@@ -115,13 +115,14 @@ class RotateObject:
 
 class Element(RotateObject):
 
-    def __init__(self, aperture: float, origin=[0., 0.], theta=0.):
+    def __init__(self, aperture: float, origin=[0., 0.], theta=0., flipped=False):
         """
         Creates an optical element
         Args:
             aperture: aperture of the element
             origin: position of the center of the element
             theta: rotation angle in degrees of element (with respect the abscissa)
+            flipped: (bool) if the edges should be flipped or not
         """
         RotateObject.__init__(self, origin, theta)
 
@@ -130,10 +131,16 @@ class Element(RotateObject):
         self.matrix = np.eye(2)
         self.mirroring = False
 
+        self.flipped = flipped
+
+
     def edges(self):
 
         points = np.array([[0., -self.aperture],
                            [0., self.aperture]]) / 2.
+
+        if self.flipped:
+            points = points[::-1, :]
 
         return self.points_to_global_frame_of_reference(points)
 
@@ -190,7 +197,7 @@ class Element(RotateObject):
 
 class Aperture(Element):
 
-    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf')):
+    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf'), flipped=False):
         """
         Creates an aperture element
         Args:
@@ -198,13 +205,14 @@ class Aperture(Element):
             origin: position of the center of the aperture
             theta: rotation angle of aperture (with respect the abscissa)
             blocker_diameter: (float, optional) size of the aperture blocker
+            flipped: (bool) if the edges should be flipped or not
         """
 
         assert diameter >= 0.
         assert blocker_diameter > diameter
         self.blocker_diameter = blocker_diameter
 
-        Element.__init__(self, diameter, origin, theta)
+        Element.__init__(self, diameter, origin, theta, flipped)
 
         self.diameter = self.aperture
 
@@ -234,7 +242,7 @@ class Aperture(Element):
 
 class Mirror(Aperture):
 
-    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf')):
+    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf'), flipped=False):
         """
         Creates a mirror element
         Args:
@@ -242,9 +250,10 @@ class Mirror(Aperture):
             origin: position of the center of the lens
             theta: rotation angle of mirror (with respect the abscissa)
             blocker_diameter: (float, optional) size of the aperture blocker
+            flipped: (bool) if the edges should be flipped or not
         """
 
-        Aperture.__init__(self, diameter, origin, theta, blocker_diameter)
+        Aperture.__init__(self, diameter, origin, theta, blocker_diameter, flipped)
         self.matrix = np.diag([1., -1.])
         self.mirroring = True
 
@@ -274,7 +283,7 @@ class Mirror(Aperture):
 class Lens(Aperture):
 
     def __init__(self, focal_length: float, diameter: float, origin=[0., 0.], theta=0.,
-                 blocker_diameter: float = float('+Inf')):
+                 blocker_diameter: float = float('+Inf'), flipped=False):
         """
         Creates an lens element
         Args:
@@ -283,9 +292,10 @@ class Lens(Aperture):
             origin: position of the center of the lens
             theta: rotation angle of aperture (with respect the abscissa)
             blocker_diameter: (float, optional) size of the aperture blocker
+            flipped: (bool) if the edges should be flipped or not
         """
 
-        Aperture.__init__(self, diameter, origin, theta, blocker_diameter)
+        Aperture.__init__(self, diameter, origin, theta, blocker_diameter, flipped)
 
         self.f = focal_length
 
@@ -333,7 +343,7 @@ class Lens(Aperture):
 class ParabolicMirror(Lens):
 
     def __init__(self, focal_length: float, diameter: float, origin=[0., 0.], theta=0.,
-                 blocker_diameter: float = float('+Inf')):
+                 blocker_diameter: float = float('+Inf'), flipped=False):
         """
         Creates a parabolic shaped mirror
         Args:
@@ -342,9 +352,10 @@ class ParabolicMirror(Lens):
             origin: position of the center of the lens
             theta: rotation angle of aperture (with respect the abscissa)
             blocker_diameter: (float, optional) size of the aperture blocker
+            flipped: (bool) if the edges should be flipped or not
         """
 
-        Lens.__init__(self, focal_length, diameter, origin, theta, blocker_diameter)
+        Lens.__init__(self, focal_length, diameter, origin, theta, blocker_diameter, flipped)
         self.mirroring = True
         self.matrix[1, 1] *= -1.0
 
@@ -408,7 +419,8 @@ class DiffractionGrating(Aperture):
 
     def __init__(self, grating: float, diameter: float, origin=[0., 0.], theta=0.,
                  blocker_diameter: float = float('+Inf'),
-                 default_wavelengths: list = [532., 430, 650.]):
+                 default_wavelengths: list = [532., 430, 650.],
+                 flipped: bool = False):
         """
         Creates a diffraction grating element
         Args:
@@ -418,9 +430,10 @@ class DiffractionGrating(Aperture):
             theta: rotation angle of mirror (with respect the abscissa)
             blocker_diameter: (float, optional) size of the aperture blocker
             default_wavelengths: (list[float], optional) wavelengths in nm, used if rays do not specify
+            flipped: (bool) if the edges should be flipped or not
         """
 
-        Mirror.__init__(self, diameter, origin, theta, blocker_diameter)
+        Mirror.__init__(self, diameter, origin, theta, blocker_diameter, flipped)
 
         self.mirroring = False
         self.grating = grating
@@ -462,7 +475,8 @@ class DiffractionGrating(Aperture):
 
 class Sensor(Mirror):
 
-    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf')):
+    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf'),
+                 flipped: bool = False):
         """
         Creates a sensor element
         Args:
@@ -470,6 +484,7 @@ class Sensor(Mirror):
             origin: position of the center of the lens
             theta: rotation angle of mirror (with respect the abscissa)
             blocker_diameter: (float, optional) size of the aperture blocker
+            flipped: (bool) if the edges should be flipped or not
         """
 
         Mirror.__init__(self, diameter, origin, theta, blocker_diameter)

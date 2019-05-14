@@ -113,7 +113,6 @@ class TracedRays:
 
     points = _view_property(slice(None), slice(None), slice(None, 2))
 
-
     def plot(self, ax: Axes, **kwargs):
 
         props = plotting.ray_properties.copy()
