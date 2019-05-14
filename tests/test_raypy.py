@@ -1,5 +1,6 @@
 from matplotlib import pyplot as plt
 import raypy2d
+from raypy2d import plotting
 from raypy2d.elements import Aperture, Lens, ParabolicMirror, Mirror, DiffractionGrating
 from raypy2d.rays import propagate, point_source_rays
 from raypy2d.paths import OpticalPath, Object
@@ -77,7 +78,7 @@ def test_some_rays_with_mirror():
     r = fourth_element.trace(r)
     r.store()
     r = propagate(r, 35)
-    rays = r.traced_array()
+    rays = r.traced_rays()
 
     raypy2d.elements.plot_blockers = False
 
@@ -152,4 +153,21 @@ def test_imaging_path_with_diffraction_grating():
     ax = plt.gca()
     ax.axis('equal')
     path.plot(ax)
+    plt.show()
+
+
+def test_max_aperture():
+    first_element = Aperture(5)
+    second_element = Lens(5, 16., [5., 1.], theta=30., blocker_diameter=18.)
+    third_element = Lens(10, 8., [10., 3.], theta=-15, blocker_diameter=10.)
+
+    raypy2d.elements.plot_blockers = False
+
+    ax = plt.gca()
+    ax.axis('equal')
+    first_element.plot(ax)
+    second_element.plot(ax)
+    third_element.plot(ax)
+    plotting.plot_maximal_aperture(ax, first_element, second_element)
+    plotting.plot_maximal_aperture(ax, second_element, third_element)
     plt.show()

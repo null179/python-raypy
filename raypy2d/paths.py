@@ -1,10 +1,10 @@
 from matplotlib.patches import Arrow
-from matplotlib import rc_params
+from matplotlib.axes import Axes
 
 import numpy as np
 from .elements import Element, RotateObject
 from .rays import point_source_rays, propagate, Rays
-from .utils import wavelength_to_rgb
+from . import plotting
 
 
 class Object(RotateObject):
@@ -38,18 +38,24 @@ class Object(RotateObject):
         # transform
         self.rays = self.to_global_frame_of_reference(self.rays)
 
+    def edges(self):
+        points = np.array([[0, -self.height],
+                           [0, self.height]]) / 2.
+
+        return self.points_to_global_frame_of_reference(points)
+
     def plot(self, ax):
-        points = np.array([[0, self.height],
-                           [0, -self.height]]) / 2.
 
-        points = self.points_to_global_frame_of_reference(points)
+        points = self.edges()
 
-        arrow = Arrow(points[0, 0], points[0, 1],
-                      dx=points[1, 0] - points[0, 0],
-                      dy=points[1, 1] - points[0, 1],
+        arrow = Arrow(points[1, 0], points[1, 1],
+                      dx=points[0, 0] - points[1, 0],
+                      dy=points[0, 1] - points[1, 1],
                       color='blue')
 
         ax.add_patch(arrow)
+
+        return [arrow]
 
 
 class OpticalPath:
@@ -73,15 +79,27 @@ class OpticalPath:
         self.rays = propagate(self.rays, x)
         self.rays.store()
 
-    def plot(self, ax):
+    def plot(self, ax: Axes):
 
-        # plot rays
-        self.rays.plot(ax)
+        plotted_objects = []
 
         # plot all elements
-        for element in self.elements:
-            element.plot(ax)
+        for i, element in enumerate(self.elements):
+            plotted_objects += element.plot(ax)
+
+            if i > 0:
+                plotted_objects += plotting.plot_maximal_aperture(ax, self.elements[i-1], element)
+
+            elif self.obj is not None:
+                plotted_objects += plotting.plot_maximal_aperture(ax, self.obj, element)
 
         # plot object
         if self.obj is not None:
-            self.obj.plot(ax)
+            plotted_objects += self.obj.plot(ax)
+
+        # plot rays
+        plotted_objects += self.rays.plot(ax)
+
+        ax.relim(visible_only=True)
+        ax.autoscale_view()
+

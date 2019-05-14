@@ -9,8 +9,9 @@ from matplotlib.axes import Axes
 origin_properties = {'color': 'black', 'linestyle': '', 'marker': 'x'}
 wall_properties = {'color': 'black', 'linewidth': 1, 'linestyle': '-'}
 axis_properties = {'color': 'grey', 'linestyle': '-.', 'linewidth': 0.5}
-outline_properties = {'color': 'grey', 'linestyle': '-', 'linewidth': 1}
+outline_properties = {'color': 'grey', 'linestyle': '-', 'linewidth': 1.5}
 ray_properties = {'color': 'orange', 'linestyle': '-', 'linewidth': 0.5}
+aperture_properties = {'color': 'black', 'linestyle': '-', 'linewidth': 0.5}
 
 
 def plot_origin(ax: Axes, origin: np.array, **kwargs):
@@ -86,6 +87,18 @@ def plot_aperture(ax: Axes, element, **kwargs):
 
     # plot the symmetry axis of the element
     return plot_axis(ax, points, **kwargs)
+
+
+def plot_maximal_aperture(ax: Axes, element1, element2, **kwargs):
+
+    edges1 = element1.edges()
+    edges2 = element2.edges()
+
+    plotted_objects =  plot_wall(ax, edges1[0, :], edges2[0, :], **aperture_properties)
+    plotted_objects += plot_wall(ax, edges1[1, :], edges2[1, :], **aperture_properties)
+    plotted_objects += plot_wall(ax, element1.origin, element2.origin, **axis_properties)
+
+    return plotted_objects
 
 
 def plot_blocker(ax: Axes, element, blocker_diameter: float, x: float = 0., width=0.4, **kwargs):

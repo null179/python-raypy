@@ -8,6 +8,7 @@ from . import plotting
 
 plot_blockers = True
 
+
 class RotateObject:
 
     def __init__(self, origin=[0., 0.], theta=0.):
@@ -90,6 +91,7 @@ class RotateObject:
         m = np.floor(rays_theta / 360.)
         rays_theta = (rays_theta - m * 360.)
 
+        rays_theta[np.isnan(rays_theta)] = 90.
         rays.forward = ((rays_theta < 90.) | (rays_theta > 270.)).astype(float) - 0.5
 
         return rays
@@ -102,6 +104,7 @@ class RotateObject:
         # rotate the forward information
         rays_theta = np.arctan(rays.tan_theta) * 180. / np.pi + (rays.forward < 0.) * 180.
         new_theta = rays_theta + self.theta
+        new_theta[np.isnan(new_theta)] = 90.
         rays.forward = ((new_theta < 90.) | (new_theta > 270.)).astype(float) - 0.5
 
         # rotate ray direction
@@ -126,6 +129,13 @@ class Element(RotateObject):
 
         self.matrix = np.eye(2)
         self.mirroring = False
+
+    def edges(self):
+
+        points = np.array([[0., -self.aperture],
+                           [0., self.aperture]]) / 2.
+
+        return self.points_to_global_frame_of_reference(points)
 
     def trace_in_element_frame_of_reference(self, rays: Rays) -> Rays:
         # propagation in air
@@ -228,7 +238,6 @@ class Mirror(Aperture):
         """
         Creates a mirror element
         Args:
-            focal_length: (float) focal length of the lens
             diameter: (float) diameter of the lens
             origin: position of the center of the lens
             theta: rotation angle of mirror (with respect the abscissa)
@@ -238,6 +247,10 @@ class Mirror(Aperture):
         Aperture.__init__(self, diameter, origin, theta, blocker_diameter)
         self.matrix = np.diag([1., -1.])
         self.mirroring = True
+
+    def edges(self):
+        edges = Aperture.edges(self)
+        return edges[::-1,:]
 
     def plot(self, ax: Axes):
         """
@@ -279,7 +292,7 @@ class Lens(Aperture):
         self.matrix = np.array([[1., 0],
                                 [-1. / self.f, 1.]])
 
-        self.draw_arcs = True
+        self.draw_arcs = False
 
     def plot(self, ax: Axes):
         """
@@ -317,7 +330,7 @@ class Lens(Aperture):
         return plotted_objects
 
 
-class ParabolicMirror(Aperture):
+class ParabolicMirror(Lens):
 
     def __init__(self, focal_length: float, diameter: float, origin=[0., 0.], theta=0.,
                  blocker_diameter: float = float('+Inf')):
@@ -336,6 +349,12 @@ class ParabolicMirror(Aperture):
         self.matrix[1, 1] *= -1.0
 
         self.x_blocker = 1. / (4 * self.f) * (self.diameter / 2.) ** 2
+
+    def edges(self):
+        points = np.array([[self.x_blocker, self.diameter / 2.],
+                           [self.x_blocker, -self.diameter / 2.]])
+
+        return self.points_to_global_frame_of_reference(points)
 
     def intersection_with(self, rays: Rays):
         a = rays.tan_theta
@@ -439,3 +458,20 @@ class DiffractionGrating(Aperture):
             plotted_objects += plotting.plot_blocker(ax, self, self.blocker_diameter)
 
         return plotted_objects
+
+
+class Sensor(Mirror):
+
+    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf')):
+        """
+        Creates a sensor element
+        Args:
+            diameter: (float) diameter of the lens
+            origin: position of the center of the lens
+            theta: rotation angle of mirror (with respect the abscissa)
+            blocker_diameter: (float, optional) size of the aperture blocker
+        """
+
+        Mirror.__init__(self, diameter, origin, theta, blocker_diameter)
+        self.matrix = np.diag([np.nan, np.nan])
+        self.mirroring = False

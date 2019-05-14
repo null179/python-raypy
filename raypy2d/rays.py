@@ -62,7 +62,7 @@ class Rays:
         return Rays(self.array.copy())
 
     def store(self):
-        self.arrays.append(self.arrays[-1].copy())
+        self.arrays.append(self.arrays[-1])
         self.arrays[-2] = self.arrays[-2][:, :3].copy()
 
     def append(self, rays):
@@ -94,7 +94,7 @@ class Rays:
     def plot(self, ax: Axes, **kwargs):
 
         rs = self.traced_rays()
-        rs.plot(ax, **kwargs)
+        return rs.plot(ax, **kwargs)
 
 
 class TracedRays:
@@ -113,6 +113,7 @@ class TracedRays:
 
     points = _view_property(slice(None), slice(None), slice(None, 2))
 
+
     def plot(self, ax: Axes, **kwargs):
 
         props = plotting.ray_properties.copy()
@@ -124,14 +125,14 @@ class TracedRays:
         plt_groups = np.unique(self.properties_array, axis=0)
 
         if len(plt_groups) > 1:
-
+            lines = list()
             if (plt_groups[:, 1] == 0.).all():
                 prop_cycle = iter(rcParams['axes.prop_cycle'])
                 for plt_props in plt_groups:
                     group_props = props.copy()
                     group_props.update({'color': next(prop_cycle)['color']})
                     I = (self.properties_array == plt_props).all(axis=1)
-                    ax.plot(self.x[I,:].T, self.y[I,:].T, **group_props)
+                    lines += ax.plot(self.x[I,:].T, self.y[I,:].T, **group_props)
 
             else:
                 prop_cycle = iter(cycle(['-', '--', '-.', ':']))
@@ -144,16 +145,18 @@ class TracedRays:
                         group_props.update({'color': wavelength_to_rgb(w)})
                     group_props.update({'linestyle': linestyles[i]})
                     I = (self.properties_array == plt_props).all(axis=1)
-                    ax.plot(self.x[I, :].T, self.y[I, :].T, **group_props)
+                    lines += ax.plot(self.x[I, :].T, self.y[I, :].T, **group_props)
 
         elif len(plt_groups) > 0:
             w = plt_groups[0][1]
             group_props = props.copy()
             if w != 0:
                 group_props.update({'color': wavelength_to_rgb(w)})
-            ax.plot(self.x.T, self.y.T, **group_props)
+            lines = ax.plot(self.x.T, self.y.T, **group_props)
         else:
-            ax.plot(self.x.T, self.y.T, **props)
+            lines = ax.plot(self.x.T, self.y.T, **props)
+
+        return lines
 
 
 def propagate(rays: Rays, x: float):
@@ -174,6 +177,7 @@ def propagate(rays: Rays, x: float):
     rays.x = x
 
     # block rays travelling in the opposite direction
+    dx[np.isnan(dx)] = 0.
     rays.y[np.logical_xor(dx > 0, rays.forward > 0)] = np.nan
 
     return rays
