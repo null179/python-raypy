@@ -365,6 +365,9 @@ class ParabolicMirror(Lens):
         points = np.array([[self.x_blocker, self.diameter / 2.],
                            [self.x_blocker, -self.diameter / 2.]])
 
+        if self.flipped:
+            points = points[::-1, :]
+
         return self.points_to_global_frame_of_reference(points)
 
     def intersection_with(self, rays: Rays):
