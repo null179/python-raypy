@@ -10,6 +10,19 @@ A simple simulation for 2D arrangments of basic optical elements
 
 Change-Log
 ----------
+##### 0.2.0
+* fixed parabolic mirror flipped
+* flipped argument for aperture outline
+* aperture outline drawing
+* fixed optical path and diffraction grating
+* fixed mirror and parabolic mirror
+* fixed plotting of parabolic mirror
+* bring back basic functionality
+* work on plotting tests
+* lens and aperture can be plotted again
+* more on plotting modularization
+* added a Rays object for facilitating the rays interpretation, some work on modularization of plotting
+
 ##### 0.1.2
 * Renamed ImagePath -> OpticalPath
 * fixed bug in ray propagation with zero angle in parabolic mirror
