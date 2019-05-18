@@ -420,7 +420,7 @@ class ParabolicMirror(Lens):
 
 class DiffractionGrating(Aperture):
 
-    def __init__(self, grating: float, diameter: float, origin=[0., 0.], theta=0.,
+    def __init__(self, grating: float, diameter: float, interference=1, origin=[0., 0.], theta=0.,
                  blocker_diameter: float = float('+Inf'),
                  default_wavelengths: list = [532., 430, 650.],
                  flipped: bool = False):
@@ -440,6 +440,7 @@ class DiffractionGrating(Aperture):
 
         self.mirroring = False
         self.grating = grating
+        self.interference = interference
         self.default_wavelengths = default_wavelengths
 
     def transform_rays(self, rays: Rays):
@@ -453,7 +454,7 @@ class DiffractionGrating(Aperture):
             new_rays.wavelength = w
             rays.append(new_rays)
 
-        rays.tan_theta = np.tan(np.arcsin(rays.wavelength / self.grating / 1000. - np.sin(np.arctan(rays.tan_theta))))
+        rays.tan_theta = np.tan(np.arcsin(self.interference * rays.wavelength / self.grating / 1000. - np.sin(np.arctan(rays.tan_theta))))
 
         return rays
 
@@ -474,22 +475,3 @@ class DiffractionGrating(Aperture):
             plotted_objects += plotting.plot_blocker(ax, self, self.blocker_diameter)
 
         return plotted_objects
-
-
-class Sensor(Mirror):
-
-    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf'),
-                 flipped: bool = False):
-        """
-        Creates a sensor element
-        Args:
-            diameter: (float) diameter of the lens
-            origin: position of the center of the lens
-            theta: rotation angle of mirror (with respect the abscissa)
-            blocker_diameter: (float, optional) size of the aperture blocker
-            flipped: (bool) if the edges should be flipped or not
-        """
-
-        Mirror.__init__(self, diameter, origin, theta, blocker_diameter)
-        self.matrix = np.diag([np.nan, np.nan])
-        self.mirroring = False

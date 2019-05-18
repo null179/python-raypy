@@ -5,7 +5,7 @@ from matplotlib.axes import Axes
 from matplotlib import rcParams
 
 import uuid
-from .utils import assure_number_of_columns, wavelength_to_rgb
+from .utils import assure_number_of_columns, wavelength_to_rgb, rolling_window
 from . import plotting
 
 
@@ -112,6 +112,37 @@ class TracedRays:
     wavelength = _view_property(slice(None), 1, attr='properties_array')
 
     points = _view_property(slice(None), slice(None), slice(None, 2))
+
+    def ray_crossings(self):
+        """
+        Calculate all crossings of the rays
+        Returns:
+
+        """
+        d = np.transpose(
+            rolling_window(
+                np.transpose(self.array[:, :, :2], axes=(1, 0, 2)), 2),
+            axes=(0, 1, 3, 2)
+        )
+
+        # indices for all possible pairs
+        I = np.transpose(np.triu_indices(d.shape[1], 1))
+
+        r = d[:, I, :]
+        v = r[:, :, :, 1] - r[:, :, :, 0]
+        p = r[:, :, 1, 0] - r[:, :, 0, 0]
+
+        # calculates lambda
+        l = (v[:, :, 1, 0] * p[:, :, 1] - v[:, :, 1, 1] * p[:, :, 0]) / (
+                    v[:, :, 0, 1] * v[:, :, 1, 0] - v[:, :, 0, 0] * v[:, :, 1, 1])
+
+        I = (l < 1) & (l > 0)
+        l[~I] = np.nan
+
+        k = np.ones_like(l)
+        k[~I] = np.nan
+
+        return l[:, :, None] * v[:, :, 0, :] + r[:, :, 0, 0] * k[:, :, None]
 
     def plot(self, ax: Axes, **kwargs):
 

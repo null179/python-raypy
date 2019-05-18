@@ -12,8 +12,8 @@ def rotation_matrix(theta: float):
 
     """
 
-    cos_theta = np.cos(theta*np.pi/180.)
-    sin_theta = np.sin(theta*np.pi/180.)
+    cos_theta = np.cos(theta * np.pi / 180.)
+    sin_theta = np.sin(theta * np.pi / 180.)
     return np.array([[cos_theta, -sin_theta], [sin_theta, cos_theta]])
 
 
@@ -82,6 +82,7 @@ def assure_number_of_columns(array: np.array, n_columns: int):
 
     return array
 
+
 def assure_number_of_rows(array: np.array, n_rows: int):
     """
     Add rows with NaN if the passed array has less then the passed number of columns
@@ -101,3 +102,46 @@ def assure_number_of_rows(array: np.array, n_rows: int):
         array[-new_rows:, :] = np.nan
 
     return array
+
+
+def rolling_window(a, window):
+    """
+    creates a view of an array for rolling windows
+    Args:
+        a: (numpy.array) array dimension d of shape (n,...)
+        window: (int) length w of the window
+
+    Returns:
+        (numpy.array) view with shape (n-w+1, ..., w)
+    """
+
+    # transpose first dimension to last
+    axes = tuple(range(1, len(a.shape))) + (0,)
+    invaxes = (-2,) + tuple(range(0,len(a.shape)-1)) + (-1,)
+
+    a = np.transpose(a, axes)
+    shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+    strides = a.strides + (a.strides[-1],)
+    view = np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
+    view = np.transpose(view, invaxes)
+    return view
+
+
+def place_relative_to(reference_element, element, distance, theta):
+    """
+    Place element relative to the reference element with a distance and an angle
+    Args:
+        reference_element: (Element) reference element
+        element: (Element) element to be place
+        distance: (float) distance to reference element
+        theta:  (float) angle with respect to reference element
+    """
+    offset = reference_element.origin
+    if theta != 0.:
+        Rmat = rotation_matrix(-theta)
+        np.dot(np.array([distance, 0.]), Rmat).squeeze()
+        element.origin = np.dot(element.origin[None,:], Rmat).squeeze()
+
+    element.origin += offset
+
+    element.theta += theta
