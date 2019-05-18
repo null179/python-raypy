@@ -137,10 +137,14 @@ def place_relative_to(reference_element, element, distance, theta):
         theta:  (float) angle with respect to reference element
     """
     offset = reference_element.origin
+    diff = np.array([distance, 0.])
+
     if theta != 0.:
         Rmat = rotation_matrix(-theta)
-        np.dot(np.array([distance, 0.]), Rmat).squeeze()
+        diff = np.dot(diff, Rmat).squeeze()
         element.origin = np.dot(element.origin[None,:], Rmat).squeeze()
+
+    offset += diff
 
     element.origin += offset
 
