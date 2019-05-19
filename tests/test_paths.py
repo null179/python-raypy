@@ -48,4 +48,11 @@ def test_sensor_element():
     ax = plt.gca()
     ax.axis('equal')
     path.plot(ax)
+
+    cross = path.rays.traced_rays().ray_crossings()
+    cross = cross.reshape((-1, 2))
+    cross = cross[~np.any(np.isnan(cross), axis=1)]
+
+    ax.scatter(cross[:, 0], cross[:, 1])
+
     plt.show()

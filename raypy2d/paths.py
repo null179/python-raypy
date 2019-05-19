@@ -72,6 +72,8 @@ class OpticalPath:
         else:
             self.rays = obj.rays
 
+        self.rays.store()
+
         self.sensors = []
 
     def append(self, *elements: List[Element], distance=0., theta=0.):

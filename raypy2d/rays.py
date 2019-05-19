@@ -134,9 +134,9 @@ class TracedRays:
 
         # calculates lambda
         l = (v[:, :, 1, 0] * p[:, :, 1] - v[:, :, 1, 1] * p[:, :, 0]) / (
-                    v[:, :, 0, 1] * v[:, :, 1, 0] - v[:, :, 0, 0] * v[:, :, 1, 1])
+                v[:, :, 0, 1] * v[:, :, 1, 0] - v[:, :, 0, 0] * v[:, :, 1, 1])
 
-        I = (l < 1) & (l > 0)
+        I = (l < 1) & (l > 0) | (np.arange(d.shape[0])[:, None] >= d.shape[0]-2)
         l[~I] = np.nan
 
         k = np.ones_like(l)
@@ -162,12 +162,12 @@ class TracedRays:
                     group_props = props.copy()
                     group_props.update({'color': next(prop_cycle)['color']})
                     I = (self.properties_array == plt_props).all(axis=1)
-                    lines += ax.plot(self.x[I,:].T, self.y[I,:].T, **group_props)
+                    lines += ax.plot(self.x[I, :].T, self.y[I, :].T, **group_props)
 
             else:
                 prop_cycle = iter(cycle(['-', '--', '-.', ':']))
-                g_map = {g: next(prop_cycle) for g in np.unique(plt_groups[:,0])}
-                linestyles = list(map(lambda g: g_map[g], plt_groups[:,0]))
+                g_map = {g: next(prop_cycle) for g in np.unique(plt_groups[:, 0])}
+                linestyles = list(map(lambda g: g_map[g], plt_groups[:, 0]))
                 for i, plt_props in enumerate(plt_groups):
                     _, w = plt_props
                     group_props = props.copy()
@@ -228,13 +228,13 @@ def point_source_rays(origin=(0., 0.), angle=(-50., 50.), n: int = 9, group: int
 
     origin = np.array(origin)
 
-    da = (max(angle) - min(angle)) / float(n-1)
+    da = (max(angle) - min(angle)) / float(n - 1)
     rays = Rays(np.zeros((n, 4)))
     rays.points = origin[None, :]
     angle = np.arange(0, n) * da + min(angle)
     rays.tan_theta = np.tan(angle * np.pi / 180.)
-    m = np.floor(angle/360.)
-    angle = (angle - m*360.)
+    m = np.floor(angle / 360.)
+    angle = (angle - m * 360.)
     rays.forward = ((angle < 90.) | (angle > 270.)).astype(float)
 
     if group is None:
