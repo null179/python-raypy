@@ -136,7 +136,7 @@ def place_relative_to(reference_element, element, distance, theta):
         distance: (float) distance to reference element
         theta:  (float) angle with respect to reference element
     """
-    offset = reference_element.origin
+    offset = reference_element.origin.copy()
     diff = np.array([distance, 0.])
 
     if theta != 0.:

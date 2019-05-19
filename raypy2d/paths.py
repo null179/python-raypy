@@ -2,10 +2,11 @@ from matplotlib.patches import Arrow
 from matplotlib.axes import Axes
 
 import numpy as np
-from .elements import Element, RotateObject
+from .elements import Element, RotateObject, Sensor
 from .utils import place_relative_to
 from .rays import point_source_rays, propagate, Rays
 from . import plotting
+from typing import List
 
 
 class Object(RotateObject):
@@ -71,45 +72,35 @@ class OpticalPath:
         else:
             self.rays = obj.rays
 
-    def append(self, element: Element, distance=0., theta=0.):
-        """
-        Append an element to the path at an optional distance relative to the previous element
-        Args:
-            element: (Element) element to append
-            distance: (float, optional) distance to previous element
-            theta: (float, optional) angle for the distance to previous element
-        """
-        if not (distance == 0. and theta == 0.):
-            place_relative_to(self.elements[-1], element, distance, theta)
-        self.elements.append(element)
+        self.sensors = []
 
-    def append_grouped(self, *elements, distance=0., theta=0.):
+    def append(self, *elements: List[Element], distance=0., theta=0.):
         """
-        Append multiple elements to the path at an optional distance relative to the previous element
+        Append an elements to the path at an optional distance relative to the previous element
         Args:
-            elements: (Element) elements to append
+            elements: list(Element) elements to append
             distance: (float, optional) distance to previous element
             theta: (float, optional) angle for the distance to previous element
         """
-        ref_element = self.elements[-1]
+        if len(self.elements) > 0:
+            ref_element = self.elements[-1]
+        else:
+            ref_element = RotateObject()
         for element in elements:
             if not (distance == 0. and theta == 0.):
                 place_relative_to(ref_element, element, distance, theta)
             self.elements.append(element)
 
+            if isinstance(element, Sensor):
+                self.sensors.append(element)
+            element.trace(self.rays)
+            self.rays.store()
+
     def propagate(self, x):
         self.rays = propagate(self.rays, x)
         self.rays.store()
 
-    def trace(self):
-        self.rays.store()
-        for element in self.elements:
-            self.rays = element.trace(self.rays)
-            self.rays.store()
-
     def plot(self, ax: Axes):
-
-        self.trace()
 
         plotted_objects = []
 
