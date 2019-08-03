@@ -10,6 +10,14 @@ A simple simulation for 2D arrangments of basic optical elements
 
 Change-Log
 ----------
+##### 0.2.1
+* added an plotting function for rays on sensor
+* added calculation of focus points for last element
+* debugged group append
+* fixed bug in place_relative_to
+* make emission angle configureable
+* add crossings calculation and group positioning
+
 ##### 0.2.0
 * fixed parabolic mirror flipped
 * flipped argument for aperture outline
