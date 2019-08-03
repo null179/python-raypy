@@ -10,6 +10,10 @@ A simple simulation for 2D arrangments of basic optical elements
 
 Change-Log
 ----------
+##### 0.2.2
+* fix bug in sensor image plot
+* code reformat
+
 ##### 0.2.1
 * added an plotting function for rays on sensor
 * added calculation of focus points for last element
