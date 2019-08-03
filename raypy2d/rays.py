@@ -126,9 +126,9 @@ class TracedRays:
         )
 
         # indices for all possible pairs
-        I = np.transpose(np.triu_indices(d.shape[1], 1))
+        Itriu = np.transpose(np.triu_indices(d.shape[1], 1))
 
-        r = d[:, I, :]
+        r = d[:, Itriu, :]
         v = r[:, :, :, 1] - r[:, :, :, 0]
         p = r[:, :, 1, 0] - r[:, :, 0, 0]
 

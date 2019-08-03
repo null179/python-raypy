@@ -11,7 +11,7 @@ from typing import List
 
 class Object(RotateObject):
 
-    def __init__(self, height, origin=[0., 0.], theta: float = 0., fans=[0, 0.5, 1.0], n: int = 9, angle=75.):
+    def __init__(self, height, origin=[0., 0.], theta: float = 0., fans=[0, 0.5, 1.0], n: int = 9, angle: List[float]=[-75, 75]):
         """
         Creates an object subject to imaging. The object emits three fans of rays
         Args:
@@ -20,7 +20,7 @@ class Object(RotateObject):
             theta: (float) rotation angle in degrees
             fans: (list[float]) position of the ray fans emitted from object
             n: (int) number of rays per fan
-            angle: (float) default emission angle for ray fans
+            angle: (list[float]) default emission angles for ray fans
         """
 
         RotateObject.__init__(self, origin, theta)
@@ -31,7 +31,7 @@ class Object(RotateObject):
         for i, fan in enumerate(self.fans_at):
             y0 = fan * self.height - self.height / 2.
 
-            rays = point_source_rays([0, y0], [-angle, angle], n=n)
+            rays = point_source_rays([0, y0], angle=angle, n=n)
             rays = self.to_global_frame_of_reference(rays)
 
             self.rays.append(rays.array)
