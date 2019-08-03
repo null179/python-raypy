@@ -66,6 +66,6 @@ def plot_sensor_img(path: OpticalPath, ax: Axes, only_wavelength=False, pixel=32
         line, = ax.plot(x, y[:, i], color=c)
         ax.plot(x, g[:, i], color=line.get_color())
         ax.text(img['mean'].values[i], 1.6, "{:.1f}px".format((img['max'] - img['min']).values[i] / mm_px),
-                ha=' center')
+                ha='center')
 
     return sensor_image
