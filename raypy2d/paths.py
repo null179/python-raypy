@@ -33,7 +33,7 @@ class Object(RotateObject):
 
             # backwards compatibility
             if isinstance(angle, int):
-                angle = [angle, angle]
+                angle = [-angle, angle]
 
             rays = point_source_rays([0, y0], angle=angle, n=n)
             rays = self.to_global_frame_of_reference(rays)

@@ -4,6 +4,7 @@ from raypy2d import plotting
 from raypy2d.elements import Aperture, Lens, ParabolicMirror, Mirror, DiffractionGrating, Sensor
 from raypy2d.rays import propagate, point_source_rays
 from raypy2d.paths import OpticalPath, Object
+from raypy2d.analysis import plot_sensor_img
 import numpy as np
 
 
@@ -84,5 +85,42 @@ def test_path_with_object():
     cross = cross[~np.any(np.isnan(cross), axis=1)]
 
     ax.scatter(cross[:, 0], cross[:, 1])
+
+    plt.show()
+
+
+def test_sensor_image():
+
+    path = OpticalPath(Object(2.0, [-8., 0.], angle=-10, n=181))
+    # raypy2d.elements.plot_blockers = False
+
+    # path.append(Aperture(1, [6.0, 0], blocker_diameter=20))
+    path.append(Aperture(0.2, [0.0, 0], blocker_diameter=20))
+
+    path.append(ParabolicMirror(40, 20., [32., 0], theta=154.5, flipped=True))
+    # path.append(Mirror(20., [50., 0], theta=165, flipped=True))
+    # path.append(DiffractionGrating(1.6, 20., interference=-1, theta=-10), distance=15., theta=130.)
+    path.append(DiffractionGrating(1.0, 20., interference=-1, theta=0), distance=15., theta=126)
+    # path.append(Aperture(13.75, blocker_diameter=15), distance=10., theta=109.5)
+    alpha = -0
+    vec = np.array([np.cos(alpha / 180. * np.pi), np.sin(alpha / 180. * np.pi)])
+    sin_alpha = np.cos(alpha / 180. * np.pi)
+    path.append(Aperture(13.75, theta=alpha, blocker_diameter=28),
+                Lens(12.0, 13.75, vec * 20, theta=alpha, flipped=False),
+                Sensor(5.58, 29.68 * vec, theta=alpha, flipped=True), distance=13., theta=90)
+
+    # path.propagate(-10)
+
+    ax = plt.gca()
+    ax.axis('equal')
+    path.plot(ax)
+
+    # cross = path.rays.traced_rays().ray_crossings()
+    # cross = cross.reshape((-1, 2))
+    # cross = cross[~np.any(np.isnan(cross), axis=1)]
+
+    # ax.scatter(cross[:, 0], cross[:, 1])
+
+    #plot_sensor_img(path, axs[0], only_wavelength=True)
 
     plt.show()

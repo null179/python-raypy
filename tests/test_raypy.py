@@ -139,7 +139,7 @@ def test_imaging_path_with_diffraction_grating():
 
     raypy2d.elements.plot_blockers = False
 
-    obj = Object(2.0, n_rays=5)
+    obj = Object(2.0, n=5)
     path = OpticalPath(obj)
 
     path.append(Lens(3, 16., [3., 0]))
