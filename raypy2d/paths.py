@@ -23,7 +23,7 @@ class Object(RotateObject):
             angle: (list[float]) default emission angles for ray fans
         """
 
-        RotateObject.__init__(self, origin, theta)
+        RotateObject.__init__(self, [0, 0], theta)
         self.height = height
         self.fans_at = fans
 
@@ -41,6 +41,9 @@ class Object(RotateObject):
             self.rays.append(rays.array)
 
         self.rays = Rays(np.vstack(self.rays))
+
+        # set correct origin
+        self.origin = np.array(origin)
 
         # transform
         self.rays = self.to_global_frame_of_reference(self.rays)

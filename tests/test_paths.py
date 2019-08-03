@@ -56,3 +56,33 @@ def test_sensor_element():
     ax.scatter(cross[:, 0], cross[:, 1])
 
     plt.show()
+
+
+def test_path_with_object():
+
+    obj = Object(2.0, [-1.,0.], angle=[-10,10],n=31)
+    path = OpticalPath(obj)
+    raypy2d.elements.plot_blockers = False
+
+    path.append(Aperture(0.1, [8.0, 0], blocker_diameter=20))
+
+    path.append(ParabolicMirror(32, 12., [40., 0], theta=175, flipped=True))
+    path.append(DiffractionGrating(1.6, 10., interference=-1, theta=-10), distance=20., theta=170.)
+    path.append(Mirror(15., theta=205.8, flipped=False), distance=12, theta=129)
+
+    path.append(Aperture(13.75, flipped=True, blocker_diameter=15),
+                Lens(22.0, 13.75, [0.01, 0], flipped=False),
+                Lens(6.2, 13.75, [0.02, 0], flipped=False),
+                Sensor(3.68, [3.80, 0], flipped=True), distance=30.)
+
+    ax = plt.gca()
+    ax.axis('equal')
+    path.plot(ax)
+
+    cross = path.rays.traced_rays().ray_crossings()
+    cross = cross.reshape((-1, 2))
+    cross = cross[~np.any(np.isnan(cross), axis=1)]
+
+    ax.scatter(cross[:, 0], cross[:, 1])
+
+    plt.show()
