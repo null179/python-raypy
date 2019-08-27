@@ -58,6 +58,10 @@ class Rays:
 
     properties_array = _view_property(slice(None), slice(4, None))
 
+    @property
+    def n(self):
+        return self.array.shape[0]
+
     def copy(self):
         return Rays(self.array.copy())
 
@@ -72,7 +76,7 @@ class Rays:
 
         rows = max([arr.shape[0] for arr in self.arrays])
 
-        arrs = []
+        arrays = []
         for arr in self.arrays:
             new_rows = rows - arr.shape[0]
 
@@ -80,16 +84,19 @@ class Rays:
                 arr = np.vstack((arr, np.zeros((new_rows, arr.shape[1]))))
                 arr[-new_rows:, :] = np.nan
 
-            arrs.append(arr)
+            arrays.append(arr)
 
-        arrs[-1] = arrs[-1][:, :3]
+        arrays[-1] = arrays[-1][:, :3]
 
-        tr = np.transpose(np.asarray(arrs), (1, 0, 2))
+        tr = np.transpose(np.asarray(arrays), (1, 0, 2))
 
         return tr
 
+    def ray_crossings(self, element=None):
+        return RayCrossings.from_traced_rays(self.traced_rays(), element)
+
     def traced_rays(self):
-        return TracedRays(self)
+        return TracedRays.from_rays(self)
 
     def plot(self, ax: Axes, **kwargs):
 
@@ -99,10 +106,17 @@ class Rays:
 
 class TracedRays:
 
-    def __init__(self, rays: Rays):
+    @staticmethod
+    def from_rays(rays: Rays):
+        return TracedRays(rays.complete_array(), rays.properties_array.copy())
 
-        self.array = rays.complete_array()
-        self.properties_array = rays.properties_array.copy()
+    def __init__(self, array: np.array, properties_array: np.array):
+        self.array = array
+        self.properties_array = properties_array
+
+    @property
+    def n(self):
+        return self.array.shape[0]
 
     x = _view_property(slice(None), slice(None), 0)
     y = _view_property(slice(None), slice(None), 1)
@@ -113,22 +127,39 @@ class TracedRays:
 
     points = _view_property(slice(None), slice(None), slice(None, 2))
 
-    def ray_crossings(self):
-        """
-        Calculate all crossings of the rays
-        Returns:
+    def __getitem__(self, item):
+        ix, iy = item
+        return TracedRays(self.array[ix, iy, :],
+                          self.properties_array[ix, :])
 
+    def ray_crossings(self, element=None):
         """
+        Calculate all crossings of the rays and returns the crossings and the properties of the two involved rays
+        crossings (n_elements - 1,
+        Args:
+            element: (int, optional) element
+        Returns:
+            crossings, properties1, properties2 (np.array, np.array, np.array)
+        """
+
+        if element is not None:
+            i_valid = np.any(~np.isnan(self.points[:, element, :]), axis=1)
+            array = self.array[i_valid, :, :2]
+            properties_array = self.properties_array[i_valid, :]
+        else:
+            array = self.array[:, :, :2]
+            properties_array = self.properties_array
+
         d = np.transpose(
             rolling_window(
-                np.transpose(self.array[:, :, :2], axes=(1, 0, 2)), 2),
+                np.transpose(array, axes=(1, 0, 2)), 2),
             axes=(0, 1, 3, 2)
         )
 
         # indices for all possible pairs
-        Itriu = np.transpose(np.triu_indices(d.shape[1], 1))
+        i_triu = np.transpose(np.triu_indices(d.shape[1], 1))
 
-        r = d[:, Itriu, :]
+        r = d[:, i_triu, :]
         v = r[:, :, :, 1] - r[:, :, :, 0]
         p = r[:, :, 1, 0] - r[:, :, 0, 0]
 
@@ -136,13 +167,16 @@ class TracedRays:
         l = (v[:, :, 1, 0] * p[:, :, 1] - v[:, :, 1, 1] * p[:, :, 0]) / (
                 v[:, :, 0, 1] * v[:, :, 1, 0] - v[:, :, 0, 0] * v[:, :, 1, 1])
 
-        I = (l < 1) & (l > 0) | (np.arange(d.shape[0])[:, None] >= d.shape[0]-2)
+        I = (l < 1) & (l > 0)  # | (np.arange(d.shape[0])[:, None] >= d.shape[0]-2)
         l[~I] = np.nan
 
         k = np.ones_like(l)
         k[~I] = np.nan
 
-        return l[:, :, None] * v[:, :, 0, :] + r[:, :, 0, 0] * k[:, :, None]
+        crossings = l[:, :, None] * v[:, :, 0, :] + r[:, :, 0, 0] * k[:, :, None]
+        crossings = np.transpose(crossings, (1, 0, 2))
+
+        return crossings, properties_array[i_triu[:, 0], :], properties_array[i_triu[:, 1], :]
 
     def plot(self, ax: Axes, **kwargs):
 
@@ -161,8 +195,8 @@ class TracedRays:
                 for plt_props in plt_groups:
                     group_props = props.copy()
                     group_props.update({'color': next(prop_cycle)['color']})
-                    I = (self.properties_array == plt_props).all(axis=1)
-                    lines += ax.plot(self.x[I, :].T, self.y[I, :].T, **group_props)
+                    i = (self.properties_array == plt_props).all(axis=1)
+                    lines += ax.plot(self.x[i, :].T, self.y[i, :].T, **group_props)
 
             else:
                 prop_cycle = iter(cycle(['-', '--', '-.', ':']))
@@ -174,8 +208,8 @@ class TracedRays:
                     if w != 0:
                         group_props.update({'color': wavelength_to_rgb(w)})
                     group_props.update({'linestyle': linestyles[i]})
-                    I = (self.properties_array == plt_props).all(axis=1)
-                    lines += ax.plot(self.x[I, :].T, self.y[I, :].T, **group_props)
+                    i = (self.properties_array == plt_props).all(axis=1)
+                    lines += ax.plot(self.x[i, :].T, self.y[i, :].T, **group_props)
 
         elif len(plt_groups) > 0:
             w = plt_groups[0][1]
@@ -187,6 +221,75 @@ class TracedRays:
             lines = ax.plot(self.x.T, self.y.T, **props)
 
         return lines
+
+
+class RayCrossings1D:
+
+    @property
+    def n(self):
+        return self.array.shape[0]
+
+    def __init__(self, array: np.array, properties_from: np.array, properties_to: np.array):
+        self.array, self.properties_from, self.properties_to = array, properties_from, properties_to
+
+    def __getitem__(self, ix):
+        return RayCrossings1D(self.array[ix, :],
+                              self.properties_from[ix, :],
+                              self.properties_to[ix, :])
+
+    x = _view_property(slice(None), 0)
+    y = _view_property(slice(None), 1)
+    points = _view_property(slice(None), slice(0, 2))
+
+    group_from = _view_property(slice(None), 0, attr='properties_from')
+    wavelength_from = _view_property(slice(None), 1, attr='properties_from')
+
+    group_to = _view_property(slice(None), 0, attr='properties_to')
+    wavelength_to = _view_property(slice(None), 1, attr='properties_to')
+
+    def image_crossings(self):
+        i = np.zeros_like(self.wavelength_to).astype(bool)
+        for g, w in np.unique(self.properties_from, axis=0):
+            i |= ((self.wavelength_from == w) & (self.wavelength_to == w) & (self.group_from == g) & (
+                    self.group_to == g))
+        return self[i]
+
+    def color_crossings(self):
+        i = np.zeros_like(self.wavelength_to).astype(bool)
+        for g, w in np.unique(self.properties_from, axis=0):
+            i |= ((self.wavelength_from == w) & (self.wavelength_to == w) & (self.group_from == g) & (
+                    self.group_to != g))
+        return self[i]
+
+
+class RayCrossings(RayCrossings1D):
+
+    @staticmethod
+    def from_traced_rays(traced_rays: TracedRays, element=None):
+        return RayCrossings(*traced_rays.ray_crossings(element))
+
+    def before(self, element: int):
+        return RayCrossings1D(self.array[:, element, :], self.properties_from, self.properties_to)
+
+    def __getitem__(self, item):
+        if isinstance(item, tuple) and len(item) == 2:
+            ix, iy = item
+            if isinstance(iy, slice):
+                return RayCrossings(self.array[ix, iy, :],
+                                    self.properties_from[ix, :],
+                                    self.properties_to[ix, :])
+            elif isinstance(iy, int):
+                return RayCrossings1D(self.array[ix, iy, :],
+                                      self.properties_from[ix, :],
+                                      self.properties_to[ix, :])
+            else:
+                raise IndexError()
+        else:
+            return self.__getitem__((item, slice(None)))
+
+    x = _view_property(slice(None), slice(None), 0)
+    y = _view_property(slice(None), slice(None), 1)
+    points = _view_property(slice(None), slice(None), slice(0, 2))
 
 
 def propagate(rays: Rays, x: float):

@@ -1,10 +1,10 @@
+import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.patches import Arc
-import numpy as np
 
-from .utils import rotation_matrix
-from .rays import propagate, Rays
 from . import plotting
+from .rays import propagate, Rays
+from .utils import rotation_matrix
 
 plot_blockers = True
 
@@ -133,7 +133,6 @@ class Element(RotateObject):
 
         self.flipped = flipped
 
-
     def edges(self):
 
         points = np.array([[0., -self.aperture],
@@ -197,7 +196,8 @@ class Element(RotateObject):
 
 class Aperture(Element):
 
-    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf'), flipped=False):
+    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf'),
+                 flipped=False):
         """
         Creates an aperture element
         Args:
@@ -242,7 +242,8 @@ class Aperture(Element):
 
 class Mirror(Aperture):
 
-    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf'), flipped=False):
+    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf'),
+                 flipped=False):
         """
         Creates a mirror element
         Args:
@@ -259,7 +260,7 @@ class Mirror(Aperture):
 
     def edges(self):
         edges = Aperture.edges(self)
-        return edges[::-1,:]
+        return edges[::-1, :]
 
     def plot(self, ax: Axes):
         """
@@ -455,9 +456,23 @@ class DiffractionGrating(Aperture):
             new_rays.wavelength = w
             rays.append(new_rays)
 
-        rays.tan_theta = np.tan(np.arcsin(self.interference * rays.wavelength / self.grating / 1000. - np.sin(np.arctan(rays.tan_theta))))
+        rays.tan_theta = np.tan(np.arcsin(
+            np.sin(np.sin(np.arctan(rays.tan_theta))) - self.interference * rays.wavelength / self.grating / 1000.))
 
         return rays
+
+    def diffraction_angle_for(self, wavelength: float = 532., theta: float = 0.):
+        """
+        calculates the diffraction angle for a specific wavelength
+        Args:
+            wavelength: (float) wavelength of the input ray
+            theta: (float) angle of incident (with respect to normal)
+
+        Returns:
+            (float) diffraction angle
+        """
+        return np.arcsin(np.sin(-theta / 180. * np.pi)
+                         - self.interference * wavelength / 1000. / self.grating) * 180 / np.pi + theta
 
     def plot(self, ax: Axes):
         """
@@ -480,7 +495,8 @@ class DiffractionGrating(Aperture):
 
 class Sensor(Mirror):
 
-    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf'), flipped=False):
+    def __init__(self, diameter: float, origin=[0., 0.], theta=0., blocker_diameter: float = float('+Inf'),
+                 flipped=False):
         """
         Creates a sensor element
         Args:

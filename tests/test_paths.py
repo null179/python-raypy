@@ -50,7 +50,7 @@ def test_sensor_element():
     ax.axis('equal')
     path.plot(ax)
 
-    cross = path.rays.traced_rays().ray_crossings()
+    cross, _, _ = path.rays.traced_rays().ray_crossings()
     cross = cross.reshape((-1, 2))
     cross = cross[~np.any(np.isnan(cross), axis=1)]
 
@@ -80,7 +80,7 @@ def test_path_with_object():
     ax.axis('equal')
     path.plot(ax)
 
-    cross = path.rays.traced_rays().ray_crossings()
+    cross, _ , _ = path.rays.traced_rays().ray_crossings()
     cross = cross.reshape((-1, 2))
     cross = cross[~np.any(np.isnan(cross), axis=1)]
 
