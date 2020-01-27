@@ -1,4 +1,4 @@
-from raypy2d.elements import DiffractionGrating, Aperture, ParabolicMirror, Lens, Sensor
+from raypy2d.elements import DiffractionGrating, DiffractionPrism, Aperture, ParabolicMirror, Lens, Sensor
 from raypy2d.paths import OpticalPath, Object
 from matplotlib import pyplot as plt
 import numpy as np
@@ -82,5 +82,32 @@ def test_diffraction_grating():
     # ax.axis('equal')
     # path.plot(ax)
     # plt.show()
+
+def test_diffraction_prism():
+    """
+    test the diffraction of rays on a prism
+    """
+    path = OpticalPath(Object(1, theta=0))
+
+    theta_diff = -30
+    m_diff = 1
+
+    path.append(DiffractionPrism(1.0, 15, origin=[10., 0], theta=theta_diff))
+
+    theta_532 = np.arcsin(np.sin(-theta_diff / 180. * np.pi)
+                          - m_diff * 532. / 1000. / path.elements[-1].grating) * 180 / np.pi \
+                          + theta_diff
+
+    theta_532_2 = path.elements[-1].diffraction_angle_for(532., theta_diff)
+
+    assert np.isclose(theta_532, -31.8337)
+    assert np.isclose(theta_532_2, -31.8337)
+
+
+    path.append(Aperture(20.), distance=20., theta=theta_532)
+    ax = plt.gca()
+    ax.axis('equal')
+    path.plot(ax)
+    plt.show()
 
 
