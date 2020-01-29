@@ -132,20 +132,29 @@ def place_relative_to(reference_element, element, distance, theta):
     Place element relative to the reference element with a distance and an angle
     Args:
         reference_element: (Element) reference element
-        element: (Element) element to be place
+        element: (Element, MultiElement) element to be place
         distance: (float) distance to reference element
         theta:  (float) angle with respect to reference element
     """
+    from .elements.base import Element, MultiElement
+
     offset = reference_element.origin.copy()
     diff = np.array([distance, 0.])
 
     if theta != 0.:
         Rmat = rotation_matrix(-theta)
         diff = np.dot(diff, Rmat).squeeze()
-        element.origin = np.dot(element.origin[None,:], Rmat).squeeze()
+        if isinstance(element, MultiElement):
+            for e in element.elements():
+                e.origin = np.dot(e.origin[None,:], Rmat).squeeze()
+        elif isinstance(element, Element):
+            element.origin = np.dot(element.origin[None,:], Rmat).squeeze()
 
     offset += diff
-
-    element.origin += offset
-
-    element.theta += theta
+    if isinstance(element, MultiElement):
+        for e in element.elements():
+            e.origin += offset
+            e.theta += theta
+    elif isinstance(element, Element):
+        element.origin += offset
+        element.theta += theta

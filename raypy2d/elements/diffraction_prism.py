@@ -1,10 +1,11 @@
 import numpy as np
 from matplotlib.axes import Axes
 from enum import Enum
+from typing import List
 
 from .. import plotting
 from ..rays import Rays, propagate
-from .base import Element
+from .base import Element, MultiElement
 from .aperture import Aperture
 from .mirror import Mirror
 
@@ -14,11 +15,13 @@ class Glasses(Enum):
     SF11 = 2
 
 
-class DiffractionPrism(Aperture):
+class DiffractionPrism(Aperture, MultiElement):
 
     constants = {
         Glasses.BK7: np.array([[1.03961212, 0.231792344, 1.01046945],
-                               [0.00600069867, 0.0200179144, 103.560653]])
+                               [0.00600069867, 0.0200179144, 103.560653]]),
+        Glasses.SF11: np.array([[1.73759695, 0.313747346, 1.89878101],
+                                [0.013188707, 0.0623068142, 155.23629]])
     }
 
     def __init__(self, diameter: float, glass: Glasses = Glasses.BK7, origin=[0., 0.], theta=0.,
@@ -28,7 +31,6 @@ class DiffractionPrism(Aperture):
         """
         Creates a diffraction grating element
         Args:
-            grating: (float) distance of grating in micrometer
             diameter: (float) diameter of the lens
             origin: position of the center of the lens
             theta: rotation angle of mirror (with respect the abscissa)
@@ -87,18 +89,8 @@ class DiffractionPrism(Aperture):
 
         return rays
 
-    def diffraction_angle_for(self, wavelength: float = 532., theta: float = 0.):
-        """
-        calculates the diffraction angle for a specific wavelength
-        Args:
-            wavelength: (float) wavelength of the input ray
-            theta: (float) angle of incident (with respect to normal)
-
-        Returns:
-            (float) diffraction angle
-        """
-        return np.arcsin(np.sin(-theta / 180. * np.pi)
-                         - self.interference * wavelength / 1000. / self.grating) * 180 / np.pi + theta
+    def elements(self) -> List[Element]:
+        return [self, self.second_interface]
 
     def plot(self, ax: Axes):
         """

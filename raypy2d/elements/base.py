@@ -4,6 +4,7 @@ from matplotlib.axes import Axes
 from .. import plotting
 from ..rays import propagate, Rays
 from ..utils import rotation_matrix
+from typing import List
 
 plot_blockers = True
 
@@ -191,3 +192,8 @@ class Element(RotateObject):
         plotted_objects += plotting.plot_aperture(ax, self)
 
         return plotted_objects
+
+
+class MultiElement(Element):
+    def elements(self) -> List[Element]:
+        return [self]
