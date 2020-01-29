@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pytest
 
+
 @pytest.fixture
 def path_with_parabolic_mirrors():
     NA = 0.22
@@ -69,19 +70,19 @@ def test_diffraction_grating():
 
     theta_532 = np.arcsin(np.sin(-theta_diff / 180. * np.pi)
                           - m_diff * 532. / 1000. / path.elements[-1].grating) * 180 / np.pi \
-                          + theta_diff
+                + theta_diff
 
     theta_532_2 = path.elements[-1].diffraction_angle_for(532., theta_diff)
 
     assert np.isclose(theta_532, -31.8337)
     assert np.isclose(theta_532_2, -31.8337)
 
-
     # path.append(Aperture(20.), distance=20., theta=theta_532)
     # ax = plt.gca()
     # ax.axis('equal')
     # path.plot(ax)
     # plt.show()
+
 
 def test_diffraction_prism():
     """
@@ -92,22 +93,16 @@ def test_diffraction_prism():
     theta_diff = -30
     m_diff = 1
 
-    path.append(DiffractionPrism(1.0, 15, origin=[10., 0], theta=theta_diff))
+    path.append(DiffractionPrism(15, origin=[10., 0], theta=theta_diff))
 
     theta_532 = np.arcsin(np.sin(-theta_diff / 180. * np.pi)
-                          - m_diff * 532. / 1000. / path.elements[-1].grating) * 180 / np.pi \
-                          + theta_diff
-
-    theta_532_2 = path.elements[-1].diffraction_angle_for(532., theta_diff)
+                          - m_diff * 532. / 1000. / 1.0) * 180 / np.pi \
+                + theta_diff
 
     assert np.isclose(theta_532, -31.8337)
-    assert np.isclose(theta_532_2, -31.8337)
-
 
     path.append(Aperture(20.), distance=20., theta=theta_532)
     ax = plt.gca()
     ax.axis('equal')
     path.plot(ax)
     plt.show()
-
-
