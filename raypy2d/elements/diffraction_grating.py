@@ -37,13 +37,14 @@ class DiffractionGrating(Aperture):
     def transform_rays(self, rays: Rays):
 
         I_split = np.isnan(rays.wavelength)
-        rays.wavelength[I_split] = self.default_wavelengths[0]
+        if np.any(I_split):
+            rays.wavelength[I_split] = self.default_wavelengths[0]
 
-        original_rays = rays.array[I_split, :].copy()
-        for w in self.default_wavelengths[1:]:
-            new_rays = Rays(original_rays)
-            new_rays.wavelength = w
-            rays.append(new_rays)
+            original_rays = rays.array[I_split, :].copy()
+            for w in self.default_wavelengths[1:]:
+                new_rays = Rays(original_rays)
+                new_rays.wavelength = w
+                rays.append(new_rays)
 
         rays.tan_theta = np.tan(np.arcsin(
             np.sin(np.sin(np.arctan(rays.tan_theta))) - self.interference * rays.wavelength / self.grating / 1000.))
